@@ -113,6 +113,20 @@ def main() -> int:
             ok6 = False
     results.append(("6. Critical findings backed by direct evidence", ok6, f"{len(critical_findings)} critical reviewed"))
 
+    # Root MFA must stay critical when AccountMFAEnabled=0 (evidence floor)
+    root_mfa = [f for f in report.findings if f.check_id == "iam_root_mfa"]
+    ok6b = True
+    if root_mfa:
+        f = root_mfa[0]
+        if f.raw_evidence.get("AccountMFAEnabled") == 0 and f.severity != "critical":
+            ok6b = False
+    detail6b = (
+        f"iam_root_mfa severity={root_mfa[0].severity}"
+        if root_mfa
+        else "iam_root_mfa not present (root MFA may be enabled)"
+    )
+    results.append(("6b. Root MFA finding stays critical when MFA disabled", ok6b, detail6b))
+
     # Criterion 7: Real infrastructure
     ok7 = bool(report.aws_account_id) and report.aws_account_id.isdigit()
     results.append(("7. Scans real AWS infrastructure", ok7, f"Account {report.aws_account_id}"))

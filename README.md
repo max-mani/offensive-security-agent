@@ -81,7 +81,27 @@ Generate access keys and paste into `.env`. **Never use root credentials for sca
 
 ### Step 2: Create Test Misconfigurations
 
-Run with **admin credentials** (not the scanner user) to create intentional findings:
+You need **admin credentials** to create test resources. The scanner user (`aivar-scanner`) is read-only and cannot create them.
+
+#### Option A: AWS Console (no admin CLI keys required)
+
+Log into the [AWS Console](https://console.aws.amazon.com) as root or an admin IAM user. Set region to **ap-south-1**. Keep `.env` pointed at `aivar-scanner` for scanning.
+
+| # | Resource | Console steps |
+|---|----------|---------------|
+| 1 | Public S3 bucket | S3 → Create bucket `aivar-test-public-manual` → uncheck all 4 "Block Public Access" boxes → Permissions → ACL → grant **Public read** |
+| 2 | Unencrypted S3 | S3 → Create bucket `aivar-test-noenc-manual` → do **not** enable default encryption |
+| 3 | IAM no MFA | IAM → Users → Create `test-no-mfa-user` → enable console access → do **not** attach MFA |
+| 4 | Open SSH SG | EC2 → Security Groups → Create `open-ssh-sg` → inbound TCP **22** from `0.0.0.0/0` |
+| 5 | Open RDP SG | EC2 → Security Groups → Create `open-rdp-sg` → inbound TCP **3389** from `0.0.0.0/0` |
+
+Verify resources are visible to the scanner (uses read-only `.env` creds):
+
+```powershell
+.\scripts\verify_test_misconfigs.ps1
+```
+
+#### Option B: CLI setup script (requires admin AWS CLI credentials)
 
 **Windows (PowerShell):**
 ```powershell
@@ -93,6 +113,8 @@ Run with **admin credentials** (not the scanner user) to create intentional find
 chmod +x scripts/setup_test_misconfigs.sh
 ./scripts/setup_test_misconfigs.sh
 ```
+
+The setup script is idempotent and runs `verify_test_misconfigs.ps1` automatically when finished.
 
 This creates:
 
@@ -109,19 +131,27 @@ This creates:
 
 **Note:** If S3 Block Public Access blocks ACL changes, the setup script disables BPA on test buckets only.
 
-### Step 3: Verify Connectivity
+### Step 3: Verify Test Resources (scanner creds)
+
+```powershell
+.\scripts\verify_test_misconfigs.ps1
+```
+
+All five checks should show **PASS** before running a demo scan.
+
+### Step 4: Verify Connectivity
 
 ```powershell
 aws sts get-caller-identity --region ap-south-1
 ```
 
-### Step 4: Run Scan
+### Step 5: Run Scan
 
 ```powershell
 python main.py --config checklist.yaml --verbose
 ```
 
-### Step 5: Verify Acceptance Criteria
+### Step 6: Verify Acceptance Criteria
 
 ```powershell
 python scripts\verify_acceptance.py

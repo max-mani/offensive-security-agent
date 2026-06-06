@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List
+from typing import Callable, Dict, List
 
 from openai import OpenAI
 
@@ -11,6 +11,18 @@ logger = logging.getLogger(__name__)
 
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 SEVERITY_LEVELS = ["critical", "high", "medium", "low", "info"]
+
+DETERMINISTIC_EVIDENCE: Dict[str, Callable[[dict], bool]] = {
+    "iam_root_mfa": lambda e: e.get("AccountMFAEnabled") == 0,
+    "iam_root_access_keys": lambda e: e.get("AccountAccessKeysPresent", 0) > 0,
+    "s3_public_acl": lambda e: bool(e.get("PublicGrants")),
+    "s3_public_policy": lambda e: bool(e.get("PolicyStatus", {}).get("IsPublic")),
+    "sg_open_ssh": lambda e: bool(e.get("OpenCIDRs")),
+    "sg_open_rdp": lambda e: bool(e.get("OpenCIDRs")),
+    "ebs_public_snapshots": lambda e: any(
+        p.get("Group") == "all" for p in e.get("CreateVolumePermissions", [])
+    ),
+}
 
 SYSTEM_PROMPT = """You are a security intelligence engine for an AI-powered AWS security agent.
 
@@ -33,7 +45,7 @@ SEVERITY RULES (strict - these prevent false positives):
 CRITICAL RULES:
 1. Do NOT upgrade severity beyond what the raw_evidence supports
 2. Do NOT invent details not present in raw_evidence
-3. If preliminary_severity is "critical" but evidence doesn't fully support it, downgrade to "high"
+3. Only downgrade below preliminary_severity when raw_evidence is ambiguous. Do NOT downgrade root MFA disabled, public S3 ACLs, or open SSH/RDP rules — these have direct API proof
 4. confidence_score reflects: how certain are you this is a real security issue?
    - 90-100: Direct API evidence, no ambiguity
    - 70-89: Strong evidence but some context missing
@@ -88,6 +100,27 @@ class IntelligenceLayer:
             return SEVERITY_LEVELS[-1]
         return SEVERITY_LEVELS[idx + 1]
 
+    def _has_definitive_evidence(self, raw: RawFinding) -> bool:
+        checker = DETERMINISTIC_EVIDENCE.get(raw.check_id)
+        if checker is None:
+            return False
+        return checker(raw.raw_evidence)
+
+    def _apply_evidence_floor(self, raw: RawFinding, severity: str) -> str:
+        """Prevent LLM from downgrading findings with unambiguous boto3 evidence."""
+        if not self._has_definitive_evidence(raw):
+            return severity
+        preliminary = raw.preliminary_severity
+        if SEVERITY_ORDER.get(severity, 99) > SEVERITY_ORDER.get(preliminary, 99):
+            logger.info(
+                "[intelligence] Evidence floor: %s %s -> %s (deterministic API proof)",
+                raw.check_id,
+                severity,
+                preliminary,
+            )
+            return preliminary
+        return severity
+
     def enrich_single(self, raw: RawFinding, config: ScanConfig) -> ValidatedFinding:
         user_message = f"""Raw security finding to enrich:
 
@@ -138,6 +171,8 @@ Enrich this finding. Be specific about the business impact and provide a runnabl
                         downgraded,
                     )
                     final_severity = downgraded
+
+            final_severity = self._apply_evidence_floor(raw, final_severity)
 
             logger.info(
                 "[intelligence] %s: %s -> %s (confidence: %s)",
