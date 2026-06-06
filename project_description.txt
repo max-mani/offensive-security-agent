@@ -1,0 +1,117 @@
+Agent 2: Offensive Security Agent
+With infrastructure shipping daily, manual security reviews happen at best quarterly. Between 
+reviews, misconfigurations and vulnerabilities silently accumulate. Security engineers spend 
+time on routine checks that should be automated. This agent continuously scans 
+infrastructure, code, and running systems for security issues — acting as a paranoid auditor 
+that never sleeps.
+Why It Matters
+• Security issues accumulate silently. New code ships, configurations drift, and 
+credentials leak — often unnoticed until a breach occurs or a compliance audit fails.
+• Manual reviews are expensive and infrequent. A quarterly security review cannot 
+catch a misconfiguration introduced on day two of the quarter. Continuous automated 
+scanning closes that gap.
+• Most checks are mechanical and automatable. Port exposure, IAM key rotation, S3 
+bucket ACLs, and known CVEs follow predictable patterns that do not require expert 
+intuition to detect.
+• Speed prevents incidents. Security warnings delivered while code is being written are 
+far more effective than post-deployment alerts. The earlier the signal, the lower the 
+remediation cost.
+What "Production-Ready" Means for This Agent
+No false positives on Critical findings — a Critical severity rating must be backed by evidence, not 
+pattern-match ambiguity.
+Actionable remediation — not 'you have a vulnerability' but 'package X version Y has CVE-2024-123, 
+the fix is to upgrade to Y+1'.
+Handles scale — scanning 50 resources should not take 30 minutes; parallelism and rate-limit 
+handling are expected.
+Knows what it cannot access — when a permission is denied or an API is unreachable, the agent 
+reports it explicitly rather than assuming the resource is clean.
+At Level 3, runs continuously on a schedule without human intervention and escalates Critical 
+findings immediately.
+Progressive Levels
+Level What to Build Key Challenge
+Level 1 Read a YAML/JSON security checklist and 
+execute each check against real AWS 
+infrastructure
+Zero false positives on 
+Critical severity —
+unsubstantiated ratings 
+destroy trust in the tool
+Level 2 Extend coverage to three domains: AWS 
+infrastructure, running application APIs, and 
+code dependency CVEs
+Each domain has different 
+signal norms — prioritize by 
+business impact, not by 
+which domain produced the 
+finding
+Level 3 Run scans on a configurable schedule, 
+deduplicate across runs, escalate Critical 
+Silent scan failures are worse 
+than missed scans — the AI/ML Hiring Challenge — Problem Statements
+Confidential. Aivar Innovations. Page 7 of 15
+findings, and track remediation SLAs without 
+human intervention
+agent must report its own 
+health and never assume 
+success
+Level 1 — Checklist-Based Infrastructure Scanning
+The agent reads a security checklist configuration file (YAML or JSON) defining a set of checks 
+to run, executes each check against real infrastructure using the AWS CLI or SDK, and 
+produces a structured findings report. Every finding must include the affected resource, 
+severity level, raw evidence from the API, business impact, and a specific remediation 
+command the operator can run immediately.
+Acceptance Criteria
+☐ Reads a security checklist configuration file in YAML or JSON format
+☐ Executes 10 or more distinct checks: IAM policies, S3 ACLs, security groups, encryption at 
+rest, MFA status
+☐ Each finding includes: resource ARN, severity, raw evidence from the API, business impact, 
+and step-by-step remediation
+☐ Handles API errors gracefully — 403, 429, and timeouts are logged, not silently swallowed
+☐ Produces both structured JSON (machine-readable) and Markdown (human-readable) 
+reports
+☐ Zero false positives on Critical severity findings
+☐ All checks execute against real infrastructure — no mocked API responses
+Level 2 — Multi-Domain Scanning
+The agent expands beyond infrastructure to scan running application endpoints 
+(authentication, CORS, rate limiting, security headers), parse dependency manifests for known 
+CVEs, and detect hardcoded credentials across repositories and config files. Findings across all 
+domains are merged, deduplicated, and ranked by estimated business impact — a leaked 
+database credential ranks above a missing security header regardless of which scanner 
+caught it.
+Acceptance Criteria
+☐ Scans a minimum of 3 domains: AWS infrastructure, live API endpoints, and code 
+dependencies
+☐ Infrastructure: 10 or more checks covering IAM, S3, security groups, encryption, and unused 
+resources
+☐ APIs: 5 or more checks covering authentication bypass, CORS misconfiguration, rate 
+limiting, security headers, and error message disclosure
+☐ Dependencies: accurate CVE detection with package name, installed version, CVE ID, CVSS 
+score, and fix version
+☐ Secrets scanning: detects AWS access keys, API tokens, and common password patterns in 
+repositories and config files
+☐ Cross-domain deduplication — the same vulnerability found by two scanners appears once AI/ML Hiring Challenge — Problem Statements
+Confidential. Aivar Innovations. Page 8 of 15
+☐ False positive rate below 5% on High and Critical severity findings
+☐ Findings ranked by business impact — not alphabetically or by domain
+Level 3 — Autonomous Continuous Scanning
+The agent operates as a persistent service: scans run on a configured schedule, findings are 
+stored with timestamps and lifecycle state, new findings trigger notifications, and re-
+appearing findings update their status rather than creating duplicates. Critical findings 
+escalate immediately to a configured channel. The agent tracks whether findings are 
+remediated within SLA and alerts on breaches. Scan health is reported explicitly — if a check 
+fails, the failure is surfaced, not silently skipped.
+Acceptance Criteria
+☐ Runs full scans (infrastructure + APIs + dependencies) on a configurable schedule with no 
+manual trigger
+☐ Stores findings with a full lifecycle: opened, updated, resolved, re-opened, and SLA status
+☐ Deduplicates across scan runs — a recurring finding updates its record, not adds a new one
+☐ Escalates Critical findings to a configured notification channel immediately upon detection
+☐ SLA tracking: alerts when a Critical finding remains unresolved beyond 24 hours
+☐ Audit trail: all scans, findings, actions, and status changes are logged with actor and 
+timestamp
+☐ Trend reporting: security posture score over time, showing whether the environment is 
+improving or degrading
+☐ Scan health reporting: if a check fails or a permission is denied, the failure is logged and 
+surfaced — never silently skipped
+☐ Optional safe auto-remediation for low-risk findings with explicit logging and a human-
+approval gate for anything destructive
