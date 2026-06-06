@@ -1,0 +1,93 @@
+# checklist.yaml - Level 1 security scan configuration
+scan:
+  name: "Aivar Infrastructure Security Audit"
+  description: "Level 1 checklist-based AWS infrastructure scan"
+  aws_region: "ap-south-1"
+  timeout_seconds: 30
+  max_workers: 5
+  llm_model: "llama-3.3-70b-versatile"
+  output_dir: "reports"
+
+checks:
+  # IAM CHECKS
+  - id: iam_root_mfa
+    enabled: true
+    description: "Root account must have MFA enabled"
+    severity_cap: critical
+    tags: [iam, mfa, critical-baseline]
+
+  - id: iam_root_access_keys
+    enabled: true
+    description: "Root account must not have active access keys"
+    severity_cap: critical
+    tags: [iam, credentials]
+
+  - id: iam_user_mfa
+    enabled: true
+    description: "All IAM users with console access must have MFA"
+    severity_cap: high
+    tags: [iam, mfa]
+
+  - id: iam_unused_access_keys
+    enabled: true
+    description: "Access keys unused for 90+ days must be rotated or deleted"
+    severity_cap: medium
+    unused_days_threshold: 90
+    tags: [iam, credentials, rotation]
+
+  - id: iam_password_policy
+    enabled: true
+    description: "Account password policy must meet minimum security standards"
+    severity_cap: medium
+    tags: [iam, policy]
+
+  # S3 CHECKS
+  - id: s3_public_acl
+    enabled: true
+    description: "S3 buckets must not grant public access via ACL"
+    severity_cap: critical
+    tags: [s3, public-access, data-exposure]
+
+  - id: s3_public_policy
+    enabled: true
+    description: "S3 bucket policies must not grant public access"
+    severity_cap: critical
+    tags: [s3, public-access, data-exposure]
+
+  - id: s3_encryption_disabled
+    enabled: true
+    description: "S3 buckets must have server-side encryption enabled"
+    severity_cap: high
+    tags: [s3, encryption, compliance]
+
+  # EC2 / EBS CHECKS
+  - id: sg_open_ssh
+    enabled: true
+    description: "Security groups must not allow SSH (port 22) from 0.0.0.0/0"
+    severity_cap: critical
+    tags: [ec2, network, ssh]
+
+  - id: sg_open_rdp
+    enabled: true
+    description: "Security groups must not allow RDP (port 3389) from 0.0.0.0/0"
+    severity_cap: critical
+    tags: [ec2, network, rdp]
+
+  - id: ec2_unencrypted_volumes
+    enabled: true
+    description: "All EC2 EBS volumes must be encrypted at rest"
+    severity_cap: high
+    tags: [ec2, ebs, encryption]
+
+  # CLOUDTRAIL CHECKS
+  - id: cloudtrail_not_logging
+    enabled: true
+    description: "CloudTrail must be enabled and actively logging in all regions"
+    severity_cap: high
+    tags: [cloudtrail, logging, audit]
+
+  - id: ebs_public_snapshots
+    enabled: true
+    description: "EBS snapshots must not be publicly accessible"
+    severity_cap: critical
+    tags: [ebs, snapshots, data-exposure]

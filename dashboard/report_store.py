@@ -1,0 +1,75 @@
+"""Load and list scan reports from the reports/ directory."""
+
+import json
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+REPORTS_DIR = PROJECT_ROOT / "reports"
+
+
+class ReportSummary(BaseModel):
+    filename: str
+    scan_id: str
+    scan_name: str
+    start_time: str
+    end_time: str
+    duration_seconds: float
+    aws_account_id: str
+    aws_region: str
+    scan_health: str
+    total_findings: int
+    total_checks_attempted: int
+    total_checks_errored: int
+    findings_by_severity: dict[str, int]
+
+
+def _reports_dir() -> Path:
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    return REPORTS_DIR
+
+
+def list_reports() -> list[ReportSummary]:
+    """List all JSON reports, newest first."""
+    summaries: list[ReportSummary] = []
+    for path in sorted(_reports_dir().glob("findings_report_*.json"), reverse=True):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            summaries.append(
+                ReportSummary(
+                    filename=path.name,
+                    scan_id=data.get("scan_id", ""),
+                    scan_name=data.get("scan_name", ""),
+                    start_time=str(data.get("start_time", "")),
+                    end_time=str(data.get("end_time", "")),
+                    duration_seconds=float(data.get("duration_seconds", 0)),
+                    aws_account_id=data.get("aws_account_id", ""),
+                    aws_region=data.get("aws_region", ""),
+                    scan_health=data.get("scan_health", "unknown"),
+                    total_findings=int(data.get("total_findings", 0)),
+                    total_checks_attempted=int(data.get("total_checks_attempted", 0)),
+                    total_checks_errored=int(data.get("total_checks_errored", 0)),
+                    findings_by_severity=data.get("findings_by_severity", {}),
+                )
+            )
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+    return summaries
+
+
+def load_report(filename: str) -> dict[str, Any] | None:
+    """Load a full report by filename."""
+    path = _reports_dir() / filename
+    if not path.exists() or not path.name.startswith("findings_report_"):
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_latest_report() -> dict[str, Any] | None:
+    """Load the most recent report."""
+    reports = list_reports()
+    if not reports:
+        return None
+    return load_report(reports[0].filename)

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aivar Offensive Security Agent</title>
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <h1>Aivar Offensive Security Agent</h1>
+      <p class="subtitle">Level 1 AWS Infrastructure Security Dashboard</p>
+    </div>
+    <div class="header-actions">
+      <span id="scanStatusBadge" class="badge badge-idle">Idle</span>
+      <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
+      <button id="runScanBtn" class="btn btn-primary">Run Scan</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="emptyState" class="empty-state hidden">
+      <h2>No scan reports yet</h2>
+      <p>Click <strong>Run Scan</strong> to start your first AWS security audit.</p>
+      <p class="hint">Tip: run <code>scripts/setup_test_misconfigs.ps1</code> as admin for demo findings.</p>
+    </section>
+
+    <section id="dashboardContent" class="hidden">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-critical">
+          <span class="kpi-label">Critical</span>
+          <span id="kpiCritical" class="kpi-value">0</span>
+        </div>
+        <div class="kpi-card kpi-high">
+          <span class="kpi-label">High</span>
+          <span id="kpiHigh" class="kpi-value">0</span>
+        </div>
+        <div class="kpi-card kpi-medium">
+          <span class="kpi-label">Medium</span>
+          <span id="kpiMedium" class="kpi-value">0</span>
+        </div>
+        <div class="kpi-card kpi-total">
+          <span class="kpi-label">Total Findings</span>
+          <span id="kpiTotal" class="kpi-value">0</span>
+        </div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-card">
+          <h3>Scan Metadata</h3>
+          <dl>
+            <dt>Health</dt><dd id="metaHealth">-</dd>
+            <dt>Account</dt><dd id="metaAccount">-</dd>
+            <dt>Region</dt><dd id="metaRegion">-</dd>
+            <dt>Duration</dt><dd id="metaDuration">-</dd>
+            <dt>Checks</dt><dd id="metaChecks">-</dd>
+            <dt>Scan Time</dt><dd id="metaTime">-</dd>
+          </dl>
+        </div>
+        <div class="meta-card">
+          <h3>Scan History</h3>
+          <label for="historySelect">Select report</label>
+          <select id="historySelect"></select>
+          <div id="scanErrorsPanel" class="errors-panel hidden">
+            <h4>Check Errors</h4>
+            <ul id="scanErrorsList"></ul>
+          </div>
+        </div>
+      </div>
+
+      <section class="findings-section">
+        <h2>Findings</h2>
+        <div id="findingsTableWrap">
+          <table class="findings-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Severity</th>
+                <th>Title</th>
+                <th>Resource</th>
+                <th>Check</th>
+                <th>Confidence</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="findingsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="logPanel" class="log-panel hidden">
+        <h3>Scan Log</h3>
+        <pre id="logOutput"></pre>
+      </section>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
