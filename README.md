@@ -6,7 +6,7 @@
 |---|---|
 | **Candidate** | Manikandan M |
 | **Agent** | Agent 2 — Offensive Security Agent |
-| **Status** | **Level 1 complete** (verified 8/8 findings) · Level 2 & 3 not started |
+| **Status** | **Level 1 complete** (verified 8/8 findings) · **Level 2 complete** · Level 3 not started |
 | **Verified** | 7 June 2026 — account `563999587682`, region `ap-south-1` |
 | **Repository** | [offensive-security-agent](https://github.com/max-mani/offensive-security-agent) |
 | **AWS Region** | `ap-south-1` (Mumbai) |
@@ -23,7 +23,7 @@
 6. [Setup & Run Guide](#6-setup--run-guide)
 7. [How to Get Admin Credentials & Create All 8 Findings](#7-how-to-get-admin-credentials--create-all-8-findings)
 8. [Screenshots & Demo Evidence](#8-screenshots--demo-evidence)
-9. [Level 2 — Multi-Domain Scanning *(Not Started)*](#9-level-2--multi-domain-scanning-not-started)
+9. [Level 2 — Multi-Domain Scanning](#9-level-2--multi-domain-scanning)
 10. [Level 3 — Autonomous Continuous Scanning *(Not Started)*](#10-level-3--autonomous-continuous-scanning-not-started)
 11. [Project Structure](#11-project-structure)
 12. [Troubleshooting](#12-troubleshooting)
@@ -72,7 +72,7 @@ With infrastructure shipping daily, manual security reviews happen at best quart
 | Level | What to Build | Key Challenge | Status |
 |-------|---------------|---------------|--------|
 | **Level 1** | Read a YAML/JSON security checklist and execute each check against real AWS infrastructure | Zero false positives on Critical severity | **Complete** |
-| **Level 2** | Extend to AWS infrastructure + live API endpoints + code dependency CVEs; merge and rank by business impact | Each domain has different signal norms | **Not started** |
+| **Level 2** | Extend to AWS infrastructure + live API endpoints + code dependency CVEs; merge and rank by business impact | Each domain has different signal norms | **Complete** |
 | **Level 3** | Run on a schedule, deduplicate findings, escalate Critical, track remediation SLAs | Silent scan failures are worse than missed scans | **Not started** |
 
 ---
@@ -631,39 +631,108 @@ Link your Loom / YouTube demo here:
 | `verify_acceptance.py` — all criteria pass | Done |
 | 8-finding demo verified on live AWS | Done |
 | Screenshots in `docs/screenshots/` | **Pending** — capture per table above |
-| Demo video (5–8 min) | **Pending** — script in `agent2_level1_plan.md` §10 |
+| Demo video (5-8 min) | **Pending** - script in `agent2_level1_plan.md` Section 10 |
 | Writeup PDF (architecture + decisions) | **Pending** |
 | Updated resume | **Pending** |
 
 ---
 
-## 9. Level 2 — Multi-Domain Scanning *(Not Started)*
+## 9. Level 2 — Multi-Domain Scanning
 
-Per Aivar problem statement — **planned, not yet implemented.**
+Per Aivar problem statement — **implemented and verified.**
 
 ### Goal
 
 Expand beyond AWS infrastructure to:
 
-- **Live API endpoints** — authentication bypass, CORS, rate limiting, security headers, error disclosure
-- **Code dependencies** — CVE detection with package name, version, CVE ID, CVSS, fix version
-- **Secrets scanning** — AWS keys, API tokens, password patterns in repos/config files
-- **Cross-domain merge** — deduplicate and rank all findings by business impact
+- **Live API endpoints** — authentication bypass, CORS, rate limiting, security headers, error disclosure, dangerous HTTP methods (6 checks)
+- **Code dependencies** — CVE detection via OSV API with package name, version, CVE ID, CVSS, fix version
+- **Secrets scanning** — 12 regex patterns for AWS keys, API tokens, passwords in repos/config files
+- **Cross-domain merge** — deduplicate and rank all findings by business impact (`impact_score`)
 
-### Level 2 Acceptance Criteria (Reference)
+### What Was Built
+
+| Component | File(s) | Description |
+|-----------|---------|-------------|
+| API scanner | `checks/api_checks.py`, `utils/http_client.py` | 6 HTTP checks against configured URLs |
+| Dependency scanner | `checks/dependency_checks.py`, `utils/osv_client.py` | Parses `requirements.txt` / `package.json`, OSV batch query |
+| Secrets scanner | `checks/secrets_checks.py` | Local regex scan with false-positive suppression |
+| Deduplicator | `agent/deduplicator.py` | Fingerprint-based cross-domain dedup |
+| Impact ranker | `agent/impact_ranker.py` | `(severity + bonus) × domain_weight × confidence` |
+| L2 orchestrator | `agent/orchestrator_l2.py` | 4 domains in parallel → LLM → dedup → rank |
+| Config | `checklist_l2.yaml` | AWS + API targets + dependency paths + secrets paths |
+| Demo fixtures | `test_secrets.env`, `test_vulnerable_requirements.txt` | Safe fake secrets and known CVE pins for demo |
+
+### Run Level 2
+
+**CLI:**
+
+```powershell
+pip install -r requirements.txt
+python main.py --level 2 --config checklist_l2.yaml --verbose
+```
+
+**Dashboard:**
+
+```powershell
+uvicorn dashboard.app:app --reload --port 8000
+```
+
+Open http://127.0.0.1:8080 and use the **Level tabs** at the top:
+
+- **Level 1 tab** - demo environment, Run Full Demo, and **Run Level 1 Scan** (AWS only)
+- **Level 2 tab** - **Run Level 2 Scan** (multi-domain audit with impact-ranked findings)
+- **Level 3 tab** - preview of planned continuous scanning features (not yet implemented)
+
+Each level shows its own reports in scan history (filtered by level).
+
+### Level 2 Acceptance Criteria
 
 | Criterion | Status |
 |-----------|--------|
-| Scans 3+ domains: AWS, APIs, dependencies | Not started |
-| Infrastructure: 10+ checks | Done in Level 1 |
-| APIs: 5+ checks | Not started |
-| Dependencies: accurate CVE detection | Not started |
-| Secrets scanning | Not started |
-| Cross-domain deduplication | Not started |
-| False positive rate < 5% on High/Critical | Not started |
-| Findings ranked by business impact | Not started |
+| Scans 3+ domains: AWS, APIs, dependencies (+ secrets bonus) | Done |
+| Infrastructure: 10+ checks | Done (13 from Level 1) |
+| APIs: 5+ checks | Done (6 checks) |
+| Dependencies: accurate CVE detection | Done (OSV API) |
+| Secrets scanning | Done (12 patterns) |
+| Cross-domain deduplication | Done |
+| False positive rate < 5% on High/Critical | Done (LLM rules + skip patterns) |
+| Findings ranked by business impact | Done (`impact_score` descending) |
 
-> **I will update this section after Level 2 is implemented.**
+**Verify:**
+
+```powershell
+python scripts\verify_acceptance_l2.py
+```
+
+Expected: `ALL LEVEL 2 ACCEPTANCE CRITERIA PASSED`
+
+### L2 Architecture
+
+```
+checklist_l2.yaml
+       │
+       ▼
+OrchestratorL2 (4 parallel domains)
+  ├── AWS (13 boto3 checks)
+  ├── API (6 HTTP checks → httpbin.org)
+  ├── Dependencies (OSV batch → test_vulnerable_requirements.txt)
+  └── Secrets (regex → test_secrets.env)
+       │
+       ▼
+LLM enrichment → deduplicate → rank_by_impact → JSON + Markdown reports
+```
+
+### L2 Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| Groq 429 / daily token limit | Level 2 uses template enrichment for API, CVE, and secrets (no LLM). Only AWS findings call Groq. If quota is exhausted, AWS findings use templates too. Wait ~15 min for daily reset. |
+| OSV API timeout | Check network; retry scan - dependency domain may show `api_error` in scan health |
+| No API findings | Ensure `https://httpbin.org` is reachable; localhost target optional |
+| Rate-limit check slow | Sends 30 requests per API target — normal (~30s per target) |
+| Secrets not found | Confirm `test_secrets.env` exists; `.env` / `.env.admin` are excluded from scan |
+| L1 regression | Run `python main.py --level 1` and `python scripts\verify_acceptance.py` |
 
 ---
 
@@ -704,24 +773,33 @@ Operate as a persistent service:
 
 ```
 offensive-security-agent/
-├── main.py                      # CLI entry point
-├── checklist.yaml               # Scan configuration (13 checks)
+├── main.py                      # CLI entry point (--level 1 or 2)
+├── checklist.yaml               # Level 1 scan config (13 checks)
+├── checklist_l2.yaml            # Level 2 multi-domain config
+├── test_secrets.env             # Demo fake secrets for L2 scanner
+├── test_vulnerable_requirements.txt  # Demo CVE pins for L2
 ├── requirements.txt
-├── .env.example
 ├── agent2_level1_plan.md        # Technical build plan (Level 1)
+├── agent2_level2_plan.md        # Technical build plan (Level 2)
 ├── config/loader.py             # YAML/JSON config loader
 ├── models/                      # Pydantic: ScanConfig, RawFinding, ValidatedFinding, ScanReport
-├── checks/                      # 13 boto3 check implementations
+├── checks/
 │   ├── iam_checks.py            # 5 IAM checks
 │   ├── s3_checks.py             # 3 S3 checks
 │   ├── ec2_checks.py            # 3 EC2/EBS checks
-│   └── cloudtrail_checks.py     # 2 CloudTrail/EBS snapshot checks
+│   ├── cloudtrail_checks.py     # 2 CloudTrail/EBS snapshot checks
+│   ├── api_checks.py            # 6 API endpoint checks (L2)
+│   ├── dependency_checks.py     # OSV CVE scanner (L2)
+│   └── secrets_checks.py        # Regex secrets scanner (L2)
 ├── agent/
-│   ├── orchestrator.py          # Parallel execution + report assembly
+│   ├── orchestrator.py          # L1 parallel execution + report assembly
+│   ├── orchestrator_l2.py       # L2 multi-domain orchestrator
+│   ├── deduplicator.py          # Cross-domain dedup (L2)
+│   ├── impact_ranker.py         # Business impact scoring (L2)
 │   ├── intelligence.py          # LLM enrichment + severity guard rails
 │   └── runner.py                # Scan entry for CLI and dashboard
 ├── reporter/                    # JSON + Markdown report generators
-├── dashboard/                   # FastAPI web UI
+├── dashboard/                   # FastAPI web UI (L1 + L2)
 │   ├── app.py                   # API routes
 │   ├── misconfig_service.py     # Create/verify/cleanup demo misconfigs
 │   ├── demo_service.py          # Full demo orchestration
@@ -729,18 +807,15 @@ offensive-security-agent/
 │   └── static/                  # index.html, app.js, app.css
 ├── utils/
 │   ├── aws_client.py            # Boto3 session factory
+│   ├── http_client.py           # API scanner HTTP session (L2)
+│   ├── osv_client.py              # OSV batch API client (L2)
 │   ├── llm_client.py            # Groq / Grok / OpenAI resolver
 │   └── retry.py                 # safe_aws_call with backoff
-├── .env.admin.example         # Template for admin creds (copy → .env.admin)
 ├── scripts/
-│   ├── run_setup_as_admin.ps1            # Setup using .env.admin (safe)
-│   ├── setup_test_misconfigs.ps1 / .sh   # Create demo misconfigs (admin)
-│   ├── verify_test_misconfigs.ps1        # Verify misconfigs (scanner)
 │   ├── verify_acceptance.py              # Level 1 acceptance check
-│   ├── run_full_test_and_cleanup.py      # End-to-end demo test (setup → scan → cleanup)
-│   └── cleanup_test_misconfigs.ps1       # Remove test resources
-├── docs/screenshots/            # Demo screenshots (see Section 8)
-└── reports/                     # Generated scan reports
+│   ├── verify_acceptance_l2.py           # Level 2 acceptance check
+│   └── ...
+└── reports/                     # Generated scan reports (*_l2.json for Level 2)
 ```
 
 ---

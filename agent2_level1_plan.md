@@ -62,7 +62,7 @@ scripts/verify_test_misconfigs.ps1
 scripts/verify_acceptance.py
 scripts/run_full_test_and_cleanup.py
 .env.admin.example                 # Admin creds template (copy → .env.admin)
-docs/screenshots/                  # Demo screenshot placeholders (see README §8)
+docs/screenshots/                  # Demo screenshot placeholders (see README Section 8)
 ```
 
 ### Key Code Changes
@@ -265,7 +265,7 @@ Region: `ap-south-1` (Mumbai) for both users.
 
 Natural (already present): `iam_root_mfa`, `cloudtrail_not_logging`, `iam_password_policy`.
 
-> **Why not unencrypted S3?** Account-level S3 default encryption applies AES256 to all new buckets — `s3_encryption_disabled` cannot be demo'd reliably. Use `s3_public_policy` instead (see README §7).
+> **Why not unencrypted S3?** Account-level S3 default encryption applies AES256 to all new buckets — `s3_encryption_disabled` cannot be demo'd reliably. Use `s3_public_policy` instead (see README Section 7).
 
 **Recommended — Dashboard (no terminal):**
 
@@ -2048,7 +2048,7 @@ See **README.md Section 7** for full instructions.
 | Method | Requires | Script / Steps |
 |--------|----------|----------------|
 | **Dashboard** *(recommended)* | `.env` + `.env.admin` | `uvicorn dashboard.app:app` → **Run Full Demo** |
-| AWS Console | Root/admin browser login | README §7 (5 resources) |
+| AWS Console | Root/admin browser login | README Section 7 (5 resources) |
 | CLI script (safe) | `.env.admin` | `scripts/run_setup_as_admin.ps1` |
 | CLI script (direct) | Admin env vars in terminal | `scripts/setup_test_misconfigs.ps1` |
 | Automated test | Both cred files | `python scripts/run_full_test_and_cleanup.py` |
@@ -2134,8 +2134,8 @@ GROQ_MODEL=llama-3.3-70b-versatile
 
 | Level | Status | Notes |
 |-------|--------|-------|
-| Level 2 | Not started | Multi-domain: APIs, CVEs, secrets, cross-domain ranking — see README §9 |
-| Level 3 | Not started | Scheduled scans, SLA, deduplication, escalation — see README §10 |
+| Level 2 | Complete | Multi-domain: APIs, CVEs, secrets, cross-domain ranking - see README Section 9 |
+| Level 3 | Not started | Scheduled scans, SLA, deduplication, escalation - see README Section 10 |
 
 Submission document for reviewers: **README.md** (company-facing, includes screenshot placeholders).
 

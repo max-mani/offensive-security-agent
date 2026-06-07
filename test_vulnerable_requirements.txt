@@ -1,0 +1,5 @@
+# Intentionally vulnerable packages for Level 2 dependency CVE demo — do not install
+django==2.2.0
+requests==2.6.0
+pillow==5.2.0
+pyyaml==3.13

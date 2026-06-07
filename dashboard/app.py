@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -22,8 +22,8 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
     title="Aivar Offensive Security Agent Dashboard",
-    description="Level 1 AWS infrastructure security scan dashboard",
-    version="1.1.0",
+    description="Level 1 & 2 multi-domain security scan dashboard",
+    version="2.0.0",
 )
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -36,6 +36,16 @@ def _any_job_running() -> bool:
 @app.get("/")
 async def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+def _level2_deps_ok() -> bool:
+    try:
+        from agent.runner import check_level2_dependencies
+
+        check_level2_dependencies()
+        return True
+    except RuntimeError:
+        return False
 
 
 @app.get("/api/health")
@@ -69,6 +79,7 @@ async def health():
         "llm_configured": llm_ok,
         "llm_provider": llm_provider,
         "llm_model": llm_model,
+        "level2_ready": _level2_deps_ok(),
         "scan_state": scan_st["state"],
         "job_state": job_st["state"],
         "active_job": active,
@@ -81,10 +92,11 @@ async def list_reports():
 
 
 @app.get("/api/reports/latest")
-async def latest_report():
-    report = report_store.load_latest_report()
+async def latest_report(level: int | None = Query(None, ge=1, le=3)):
+    report = report_store.load_latest_report(level=level)
     if not report:
-        raise HTTPException(status_code=404, detail="No reports found. Run a scan first.")
+        label = f"Level {level} " if level else ""
+        raise HTTPException(status_code=404, detail=f"No {label}reports found. Run a scan first.")
     return report
 
 
@@ -97,12 +109,25 @@ async def get_report(filename: str):
 
 
 @app.post("/api/scans/run")
-async def run_scan_endpoint():
+async def run_scan_endpoint(
+    level: int = Query(1, ge=1, le=2, description="Scan level: 1=AWS, 2=multi-domain"),
+    config: str | None = Query(None, description="Config file path"),
+):
     if _any_job_running():
         raise HTTPException(status_code=409, detail="Another operation is already running.")
-    if not scan_service.start_scan("checklist.yaml"):
+    if level >= 2 and not _level2_deps_ok():
+        raise HTTPException(
+            status_code=400,
+            detail="Level 2 packages missing. Run: pip install -r requirements.txt (in your venv).",
+        )
+    config_path = config or ("checklist_l2.yaml" if level >= 2 else "checklist.yaml")
+    if not scan_service.start_scan(config_path, level=level):
         raise HTTPException(status_code=409, detail="A scan is already running.")
-    return {"message": "Scan started", "status": scan_service.get_status()}
+    return {
+        "message": f"Level {level} scan started",
+        "config": config_path,
+        "status": scan_service.get_status(),
+    }
 
 
 @app.get("/api/scans/status")
@@ -125,7 +150,7 @@ async def demo_setup():
     if not misconfig_service.admin_configured():
         raise HTTPException(
             status_code=400,
-            detail=".env.admin not configured. Add aivar-admin keys (see README §7).",
+            detail=".env.admin not configured. Add aivar-admin keys (see README Section 7).",
         )
     if not misconfig_service.start_setup():
         raise HTTPException(status_code=409, detail="Setup already running.")

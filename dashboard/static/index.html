@@ -10,33 +10,86 @@
   <header class="header">
     <div class="header-left">
       <h1>Aivar Offensive Security Agent</h1>
-      <p class="subtitle">Level 1 AWS Infrastructure Security Dashboard</p>
+      <p id="pageSubtitle" class="subtitle">Level 1 - AWS Infrastructure Scanner</p>
     </div>
     <div class="header-actions">
       <span id="scanStatusBadge" class="badge badge-idle">Idle</span>
       <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
-      <button id="runScanBtn" class="btn btn-primary">Run Scan</button>
     </div>
   </header>
 
+  <nav class="level-nav" aria-label="Scan level">
+    <button type="button" class="level-tab level-tab-active" data-level="1">
+      <span class="level-tab-num">1</span>
+      <span class="level-tab-label">AWS Infrastructure</span>
+    </button>
+    <button type="button" class="level-tab" data-level="2">
+      <span class="level-tab-num">2</span>
+      <span class="level-tab-label">Multi-Domain</span>
+    </button>
+    <button type="button" class="level-tab level-tab-disabled" data-level="3" title="Coming soon">
+      <span class="level-tab-num">3</span>
+      <span class="level-tab-label">Continuous</span>
+      <span class="level-tab-badge">Soon</span>
+    </button>
+  </nav>
+
   <main class="container">
-    <section class="demo-panel">
-      <div class="demo-panel-header">
-        <h2>Demo Environment</h2>
-        <p class="demo-desc">Create intentional AWS misconfigs, scan, and view ~8 findings — all from this dashboard.</p>
-      </div>
-      <div class="credential-badges">
-        <span id="scannerBadge" class="cred-badge">Scanner: checking…</span>
-        <span id="adminBadge" class="cred-badge">Admin: checking…</span>
-      </div>
-      <div class="demo-actions">
-        <button id="fullDemoBtn" class="btn btn-accent" title="Setup → Verify → Scan in one click">Run Full Demo</button>
-        <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
-        <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
-        <button id="cleanupBtn" class="btn btn-danger">Delete All Test Resources</button>
-      </div>
-      <p class="demo-hint">Requires <code>.env</code> (scanner) and <code>.env.admin</code> (aivar-admin). See README §7.</p>
-    </section>
+    <!-- Level 1 -->
+    <div id="level1View" class="level-view">
+      <section class="level-hero level-hero-l1">
+        <h2>Level 1: AWS Infrastructure Scan</h2>
+        <p>13 boto3 checks across IAM, S3, EC2, and CloudTrail. Use the demo flow to create test misconfigs and scan for ~8 findings.</p>
+      </section>
+
+      <section class="demo-panel">
+        <div class="demo-panel-header">
+          <h2>Demo Environment</h2>
+          <p class="demo-desc">Create intentional AWS misconfigs, scan, and view findings - all from this dashboard.</p>
+        </div>
+        <div class="credential-badges">
+          <span id="scannerBadge" class="cred-badge">Scanner: checking...</span>
+          <span id="adminBadge" class="cred-badge">Admin: checking...</span>
+        </div>
+        <div class="demo-actions">
+          <button id="fullDemoBtn" class="btn btn-accent" title="Setup, verify, scan in one click">Run Full Demo</button>
+          <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
+          <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
+          <button id="cleanupBtn" class="btn btn-danger">Delete All Test Resources</button>
+          <button id="runScanL1Btn" class="btn btn-primary">Run Level 1 Scan</button>
+        </div>
+        <p class="demo-hint">Requires <code>.env</code> (scanner) and <code>.env.admin</code> (aivar-admin). See README Section 7.</p>
+      </section>
+    </div>
+
+    <!-- Level 2 -->
+    <div id="level2View" class="level-view hidden">
+      <section class="level-hero level-hero-l2">
+        <h2>Level 2: Multi-Domain Scan</h2>
+        <p>AWS infrastructure plus API endpoints, dependency CVEs, and secrets scanning. Findings are deduplicated and ranked by business impact.</p>
+        <ul class="level-feature-list">
+          <li>6 API checks (headers, CORS, rate limit, auth bypass, errors, HTTP methods)</li>
+          <li>OSV dependency CVE scan on <code>test_vulnerable_requirements.txt</code></li>
+          <li>Secrets scan on <code>test_secrets.env</code></li>
+        </ul>
+        <button id="runScanL2Btn" class="btn btn-primary">Run Level 2 Scan</button>
+      </section>
+    </div>
+
+    <!-- Level 3 -->
+    <div id="level3View" class="level-view hidden">
+      <section class="level-hero level-hero-l3">
+        <h2>Level 3: Autonomous Continuous Scanning</h2>
+        <p class="coming-soon-label">Not yet implemented</p>
+        <p>Level 3 will add scheduled scans, finding lifecycle tracking, SLA alerts, and Critical escalation - no manual trigger required.</p>
+        <ul class="level-feature-list">
+          <li>Configurable scan schedule</li>
+          <li>Finding lifecycle: opened, updated, resolved, re-opened</li>
+          <li>Cross-run deduplication and posture score trends</li>
+          <li>Critical escalation to notification channels</li>
+        </ul>
+      </section>
+    </div>
 
     <section id="pipelinePanel" class="pipeline-panel hidden">
       <h3 id="pipelineTitle">Progress</h3>
@@ -44,8 +97,8 @@
     </section>
 
     <section id="emptyState" class="empty-state hidden">
-      <h2>No scan reports yet</h2>
-      <p>Click <strong>Run Full Demo</strong> or <strong>Run Scan</strong> to start.</p>
+      <h2 id="emptyStateTitle">No Level 1 reports yet</h2>
+      <p id="emptyStateDesc">Click <strong>Run Full Demo</strong> or <strong>Run Level 1 Scan</strong> to start.</p>
     </section>
 
     <section id="dashboardContent" class="hidden">
@@ -66,12 +119,21 @@
           <span class="kpi-label">Total Findings</span>
           <span id="kpiTotal" class="kpi-value">0</span>
         </div>
+        <div id="kpiDomainsCard" class="kpi-card kpi-domains hidden">
+          <span class="kpi-label">Domains</span>
+          <span id="kpiDomains" class="kpi-value">0</span>
+        </div>
+        <div id="kpiDedupCard" class="kpi-card kpi-dedup hidden">
+          <span class="kpi-label">Dedup Removed</span>
+          <span id="kpiDedup" class="kpi-value">0</span>
+        </div>
       </div>
 
       <div class="meta-grid">
         <div class="meta-card">
           <h3>Scan Metadata</h3>
           <dl>
+            <dt>Level</dt><dd id="metaLevel">-</dd>
             <dt>Health</dt><dd id="metaHealth">-</dd>
             <dt>Account</dt><dd id="metaAccount">-</dd>
             <dt>Region</dt><dd id="metaRegion">-</dd>
@@ -92,10 +154,10 @@
       </div>
 
       <section class="findings-section">
-        <h2>Findings</h2>
+        <h2 id="findingsSectionTitle">Findings</h2>
         <div id="findingsTableWrap">
           <table class="findings-table">
-            <thead>
+            <thead id="findingsTableHead">
               <tr>
                 <th></th>
                 <th>Severity</th>

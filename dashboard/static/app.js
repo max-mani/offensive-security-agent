@@ -2,16 +2,49 @@ const API = "";
 
 let pollInterval = null;
 let currentReport = null;
-let activeMode = null; // "scan" | "job"
+let activeMode = null;
+let currentLevel = 1;
+let activeScanLevel = 1;
+
+const LEVEL_SUBTITLES = {
+  1: "Level 1 - AWS Infrastructure Scanner",
+  2: "Level 2 - Multi-Domain Scanner (AWS + API + CVE + Secrets)",
+  3: "Level 3 - Autonomous Continuous Scanning (Coming Soon)",
+};
+
+const EMPTY_STATE = {
+  1: {
+    title: "No Level 1 reports yet",
+    desc: 'Click <strong>Run Full Demo</strong> or <strong>Run Level 1 Scan</strong> to start.',
+  },
+  2: {
+    title: "No Level 2 reports yet",
+    desc: 'Click <strong>Run Level 2 Scan</strong> to run the multi-domain audit.',
+  },
+  3: {
+    title: "Level 3 not available",
+    desc: "Scheduled scanning and SLA tracking will appear here when Level 3 is implemented.",
+  },
+};
 
 const els = {
+  pageSubtitle: document.getElementById("pageSubtitle"),
+  level1View: document.getElementById("level1View"),
+  level2View: document.getElementById("level2View"),
+  level3View: document.getElementById("level3View"),
+  levelTabs: document.querySelectorAll(".level-tab"),
   emptyState: document.getElementById("emptyState"),
+  emptyStateTitle: document.getElementById("emptyStateTitle"),
+  emptyStateDesc: document.getElementById("emptyStateDesc"),
   dashboardContent: document.getElementById("dashboardContent"),
-  runScanBtn: document.getElementById("runScanBtn"),
+  runScanL1Btn: document.getElementById("runScanL1Btn"),
+  runScanL2Btn: document.getElementById("runScanL2Btn"),
   refreshBtn: document.getElementById("refreshBtn"),
   scanStatusBadge: document.getElementById("scanStatusBadge"),
   historySelect: document.getElementById("historySelect"),
   findingsBody: document.getElementById("findingsBody"),
+  findingsTableHead: document.getElementById("findingsTableHead"),
+  findingsSectionTitle: document.getElementById("findingsSectionTitle"),
   logPanel: document.getElementById("logPanel"),
   logOutput: document.getElementById("logOutput"),
   scanErrorsPanel: document.getElementById("scanErrorsPanel"),
@@ -21,6 +54,7 @@ const els = {
   kpiHigh: document.getElementById("kpiHigh"),
   kpiMedium: document.getElementById("kpiMedium"),
   kpiTotal: document.getElementById("kpiTotal"),
+  metaLevel: document.getElementById("metaLevel"),
   metaHealth: document.getElementById("metaHealth"),
   metaAccount: document.getElementById("metaAccount"),
   metaRegion: document.getElementById("metaRegion"),
@@ -36,9 +70,27 @@ const els = {
   pipelinePanel: document.getElementById("pipelinePanel"),
   pipelineTitle: document.getElementById("pipelineTitle"),
   pipelineSteps: document.getElementById("pipelineSteps"),
+  kpiDomainsCard: document.getElementById("kpiDomainsCard"),
+  kpiDedupCard: document.getElementById("kpiDedupCard"),
+  kpiDomains: document.getElementById("kpiDomains"),
+  kpiDedup: document.getElementById("kpiDedup"),
 };
 
-const demoBtns = [els.fullDemoBtn, els.setupBtn, els.verifyBtn, els.cleanupBtn, els.runScanBtn];
+const DOMAIN_LABELS = {
+  aws_infrastructure: "AWS",
+  api_endpoints: "API",
+  dependencies: "Deps",
+  secrets: "Secrets",
+};
+
+const demoBtns = [
+  els.fullDemoBtn,
+  els.setupBtn,
+  els.verifyBtn,
+  els.cleanupBtn,
+  els.runScanL1Btn,
+  els.runScanL2Btn,
+];
 
 async function fetchJSON(url, options = {}) {
   const res = await fetch(API + url, options);
@@ -71,7 +123,9 @@ function setScanBadge(state, label) {
 }
 
 function setButtonsDisabled(disabled) {
-  demoBtns.forEach(b => { b.disabled = disabled; });
+  demoBtns.forEach((b) => {
+    if (b) b.disabled = disabled;
+  });
 }
 
 function escapeHtml(str) {
@@ -83,6 +137,65 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+function reportLevel(report) {
+  return report?.scan_level || (report?.filename?.includes("_l2") ? 2 : 1);
+}
+
+function switchLevel(level) {
+  currentLevel = level;
+  els.pageSubtitle.textContent = LEVEL_SUBTITLES[level] || LEVEL_SUBTITLES[1];
+
+  els.levelTabs.forEach((tab) => {
+    const tabLevel = parseInt(tab.dataset.level, 10);
+    tab.classList.toggle("level-tab-active", tabLevel === level);
+  });
+
+  els.level1View.classList.toggle("hidden", level !== 1);
+  els.level2View.classList.toggle("hidden", level !== 2);
+  els.level3View.classList.toggle("hidden", level !== 3);
+
+  if (level === 3) {
+    els.dashboardContent.classList.add("hidden");
+    els.emptyState.classList.remove("hidden");
+    els.emptyStateTitle.textContent = EMPTY_STATE[3].title;
+    els.emptyStateDesc.innerHTML = EMPTY_STATE[3].desc;
+    els.pipelinePanel.classList.add("hidden");
+    return;
+  }
+
+  loadLatestReportForLevel(level);
+}
+
+function renderFindingsTableHead(isL2) {
+  if (isL2) {
+    els.findingsTableHead.innerHTML = `
+      <tr>
+        <th></th>
+        <th>Severity</th>
+        <th>Impact</th>
+        <th>Domain</th>
+        <th>Title</th>
+        <th>Resource</th>
+        <th>Check</th>
+        <th>Confidence</th>
+        <th>Actions</th>
+      </tr>`;
+    els.findingsSectionTitle.textContent = "Findings (Ranked by Business Impact)";
+  } else {
+    els.findingsTableHead.innerHTML = `
+      <tr>
+        <th></th>
+        <th>Severity</th>
+        <th>Title</th>
+        <th>Resource</th>
+        <th>Check</th>
+        <th>Confidence</th>
+        <th>Actions</th>
+      </tr>`;
+    els.findingsSectionTitle.textContent = "Findings (By Severity)";
+  }
+}
+
 function renderPipeline(title, steps) {
   if (!steps || !steps.length) {
     els.pipelinePanel.classList.add("hidden");
@@ -90,29 +203,39 @@ function renderPipeline(title, steps) {
   }
   els.pipelinePanel.classList.remove("hidden");
   els.pipelineTitle.textContent = title;
-  els.pipelineSteps.innerHTML = steps.map((s, i) => {
-    const icon = s.status === "completed" ? "✓" : s.status === "running" ? "●" : s.status === "failed" ? "✗" : "○";
-    const detail = s.detail ? `<span class="step-detail">${escapeHtml(s.detail)}</span>` : "";
-    return `<li class="step step-${s.status}" data-idx="${i}">
+  els.pipelineSteps.innerHTML = steps
+    .map((s, i) => {
+      const icon =
+        s.status === "completed" ? "[OK]" : s.status === "running" ? "[..]" : s.status === "failed" ? "[X]" : "[ ]";
+      const detail = s.detail ? `<span class="step-detail">${escapeHtml(s.detail)}</span>` : "";
+      return `<li class="step step-${s.status}" data-idx="${i}">
       <span class="step-icon">${icon}</span>
       <span class="step-label">${escapeHtml(s.label)}</span>
       ${detail}
     </li>`;
-  }).join("");
+    })
+    .join("");
 }
 
 const JOB_TITLES = {
-  setup: "Creating test misconfigurations…",
-  cleanup: "Deleting test resources…",
-  verify: "Verifying scanner can see resources…",
-  full_demo: "Running full demo pipeline…",
-  scan: "Running security scan…",
+  setup: "Creating test misconfigurations...",
+  cleanup: "Deleting test resources...",
+  verify: "Verifying scanner can see resources...",
+  full_demo: "Running full demo pipeline...",
+  scan: "Running security scan...",
 };
 
 function renderReport(report) {
   currentReport = report;
+  const level = reportLevel(report);
+  const isL2 = level >= 2;
+
   els.emptyState.classList.add("hidden");
   els.dashboardContent.classList.remove("hidden");
+
+  renderFindingsTableHead(isL2);
+  els.kpiDomainsCard.classList.toggle("hidden", !isL2);
+  els.kpiDedupCard.classList.toggle("hidden", !isL2);
 
   const sev = report.findings_by_severity || {};
   els.kpiCritical.textContent = sev.critical || 0;
@@ -120,30 +243,51 @@ function renderReport(report) {
   els.kpiMedium.textContent = sev.medium || 0;
   els.kpiTotal.textContent = report.total_findings || 0;
 
+  if (isL2) {
+    els.kpiDomains.textContent = (report.domains_scanned || []).length;
+    els.kpiDedup.textContent = report.deduplication_removed || 0;
+  }
+
+  els.metaLevel.textContent = `Level ${level}`;
   const health = report.scan_health || "unknown";
   els.metaHealth.innerHTML = `<span class="health-${health}">${health.charAt(0).toUpperCase() + health.slice(1)}</span>`;
   els.metaAccount.textContent = report.aws_account_id || "-";
   els.metaRegion.textContent = report.aws_region || "-";
   els.metaDuration.textContent = `${(report.duration_seconds || 0).toFixed(1)}s`;
-  els.metaChecks.textContent = `${report.total_checks_succeeded || 0}/${report.total_checks_attempted || 0} succeeded`;
+  els.metaChecks.textContent = isL2
+    ? `${(report.domains_scanned || []).join(", ") || "-"}`
+    : `${report.total_checks_succeeded || 0}/${report.total_checks_attempted || 0} succeeded`;
   els.metaTime.textContent = formatTime(report.end_time || report.start_time);
 
-  renderFindings(report.findings || []);
+  let findings = report.findings || [];
+  if (isL2) {
+    findings = [...findings].sort((a, b) => (b.impact_score || 0) - (a.impact_score || 0));
+  }
+  renderFindings(findings, isL2);
   renderErrors(report.scan_errors || []);
 }
 
-function renderFindings(findings) {
+function renderFindings(findings, isL2 = false) {
+  const colSpan = isL2 ? 9 : 7;
   els.findingsBody.innerHTML = "";
   if (!findings.length) {
-    els.findingsBody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:2rem">No findings — environment looks clean for enabled checks.</td></tr>`;
+    els.findingsBody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center;color:var(--muted);padding:2rem">No findings - environment looks clean for enabled checks.</td></tr>`;
     return;
   }
 
   findings.forEach((f, idx) => {
     const tr = document.createElement("tr");
+    const domainCell = isL2
+      ? `<td><span class="domain-tag domain-${f.domain || "unknown"}">${escapeHtml(DOMAIN_LABELS[f.domain] || f.domain || "-")}</span></td>`
+      : "";
+    const impactCell = isL2
+      ? `<td><span class="impact-score">${(f.impact_score || 0).toFixed(1)}</span></td>`
+      : "";
     tr.innerHTML = `
       <td><button class="expand-btn" data-idx="${idx}" aria-label="Expand">+</button></td>
       <td><span class="sev sev-${f.severity}">${f.severity}</span></td>
+      ${impactCell}
+      ${domainCell}
       <td>${escapeHtml(f.title)}</td>
       <td><span class="resource-mono">${escapeHtml(f.resource_id)}</span></td>
       <td><span class="resource-mono">${escapeHtml(f.check_id)}</span></td>
@@ -152,16 +296,35 @@ function renderFindings(findings) {
     `;
     els.findingsBody.appendChild(tr);
 
+    const evidence = f.raw_evidence || {};
+    let extraDetail = "";
+    if (f.check_id === "dependency_cve") {
+      extraDetail = `
+        <h4>CVE Details</h4>
+        <p>Package: ${escapeHtml(evidence.package_name || "-")}@${escapeHtml(evidence.installed_version || "-")}</p>
+        <p>CVE IDs: ${escapeHtml((evidence.cve_ids || []).join(", ") || "-")}</p>
+        <p>CVSS: ${escapeHtml(String(evidence.cvss_score ?? "-"))}</p>
+        <p>Fix: ${escapeHtml((evidence.fix_versions || []).join(", ") || "-")}</p>`;
+    }
+    if (f.check_id === "secrets_scan") {
+      extraDetail = `
+        <h4>Secret Details</h4>
+        <p>Type: ${escapeHtml(evidence.secret_type || "-")}</p>
+        <p>Redacted: <code>${escapeHtml(evidence.value_redacted || "-")}</code></p>
+        <p>File: ${escapeHtml(evidence.file_path || "-")} line ${escapeHtml(String(evidence.line_number || "-"))}</p>`;
+    }
+
     const detailTr = document.createElement("tr");
     detailTr.className = "detail-row hidden";
     detailTr.dataset.detail = idx;
-    detailTr.innerHTML = `<td colspan="7"><div class="detail-panel">
+    detailTr.innerHTML = `<td colspan="${colSpan}"><div class="detail-panel">
       <h4>Business Impact</h4>
       <p>${escapeHtml(f.business_impact)}</p>
+      ${extraDetail}
       <h4>Severity Reasoning</h4>
       <p>${escapeHtml(f.severity_reasoning)}</p>
       <h4>Remediation Steps</h4>
-      <ol>${(f.remediation_steps || []).map(s => `<li>${escapeHtml(s)}</li>`).join("")}</ol>
+      <ol>${(f.remediation_steps || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ol>
       <h4>Remediation Command</h4>
       <div class="cmd-block">
         <pre>${escapeHtml(f.remediation_command || "N/A")}</pre>
@@ -169,21 +332,21 @@ function renderFindings(findings) {
       </div>
       <h4>Raw Evidence</h4>
       <pre class="evidence-pre">${escapeHtml(JSON.stringify(f.raw_evidence, null, 2))}</pre>
-      <p style="margin-top:0.75rem;font-size:0.8rem;color:var(--muted)">ARN: ${escapeHtml(f.resource_arn)}</p>
+      <p style="margin-top:0.75rem;font-size:0.8rem;color:var(--muted)">ARN: ${escapeHtml(f.resource_arn)}${isL2 ? ` | Domain: ${escapeHtml(f.domain || "-")} | Impact: ${f.impact_score || 0}` : ""}</p>
     </div></td>`;
     els.findingsBody.appendChild(detailTr);
   });
 
-  els.findingsBody.querySelectorAll(".expand-btn").forEach(btn => {
+  els.findingsBody.querySelectorAll(".expand-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const idx = btn.dataset.idx;
       const row = els.findingsBody.querySelector(`tr[data-detail="${idx}"]`);
       const open = row.classList.toggle("hidden");
-      btn.textContent = open ? "+" : "−";
+      btn.textContent = open ? "+" : "-";
     });
   });
 
-  els.findingsBody.querySelectorAll("[data-copy]").forEach(btn => {
+  els.findingsBody.querySelectorAll("[data-copy]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const f = findings[parseInt(btn.dataset.copy, 10)];
       copyText(f.remediation_command || "");
@@ -197,9 +360,12 @@ function renderErrors(errors) {
     return;
   }
   els.scanErrorsPanel.classList.remove("hidden");
-  els.scanErrorsList.innerHTML = errors.map(e =>
-    `<li><strong>${escapeHtml(e.check_id)}</strong> (${escapeHtml(e.error_type)}): ${escapeHtml(e.error_message)}</li>`
-  ).join("");
+  els.scanErrorsList.innerHTML = errors
+    .map(
+      (e) =>
+        `<li><strong>${escapeHtml(e.check_id)}</strong> (${escapeHtml(e.error_type)}): ${escapeHtml(e.error_message)}</li>`
+    )
+    .join("");
 }
 
 async function copyText(text) {
@@ -211,14 +377,21 @@ async function copyText(text) {
   }
 }
 
-async function loadHistory() {
+async function loadHistory(level = currentLevel) {
   try {
     const reports = await fetchJSON("/api/reports");
-    els.historySelect.innerHTML = reports.map(r =>
-      `<option value="${r.filename}">${formatTime(r.end_time)} — ${r.total_findings} findings (${r.scan_health})</option>`
-    ).join("");
-    if (currentReport && reports.length) {
-      const match = reports.find(r => r.scan_id === currentReport.scan_id);
+    const filtered = reports.filter((r) => (r.scan_level || 1) === level);
+    const list = filtered.length ? filtered : reports;
+
+    els.historySelect.innerHTML = list
+      .map((r) => {
+        const lvl = r.scan_level || 1;
+        return `<option value="${r.filename}">L${lvl} | ${formatTime(r.end_time)} - ${r.total_findings} findings (${r.scan_health})</option>`;
+      })
+      .join("");
+
+    if (currentReport && list.length) {
+      const match = list.find((r) => r.scan_id === currentReport.scan_id);
       if (match) els.historySelect.value = match.filename;
     }
   } catch {
@@ -226,15 +399,20 @@ async function loadHistory() {
   }
 }
 
-async function loadLatestReport() {
+async function loadLatestReportForLevel(level) {
+  if (level === 3) return;
+
   try {
-    const report = await fetchJSON("/api/reports/latest");
+    const report = await fetchJSON(`/api/reports/latest?level=${level}`);
     renderReport(report);
-    await loadHistory();
+    await loadHistory(level);
   } catch {
-    els.emptyState.classList.remove("hidden");
     els.dashboardContent.classList.add("hidden");
-    await loadHistory();
+    els.emptyState.classList.remove("hidden");
+    const state = EMPTY_STATE[level] || EMPTY_STATE[1];
+    els.emptyStateTitle.textContent = state.title;
+    els.emptyStateDesc.innerHTML = state.desc;
+    await loadHistory(level);
   }
 }
 
@@ -268,14 +446,15 @@ async function pollStatus() {
 
     if (scanRunning) {
       activeMode = "scan";
-      setScanBadge("running", "Scanning");
+      const lvl = scanSt.scan_level || activeScanLevel;
+      setScanBadge("running", lvl >= 2 ? "L2 Scanning" : "L1 Scanning");
       setButtonsDisabled(true);
       els.logPanel.classList.remove("hidden");
       els.logOutput.textContent = (scanSt.log_tail || []).join("\n");
-      renderPipeline(JOB_TITLES.scan, scanSt.steps);
+      renderPipeline(`Level ${lvl} scan in progress...`, scanSt.steps);
       const done = scanSt.steps_completed || 0;
       const total = scanSt.steps_total || 0;
-      els.pipelineTitle.textContent = `${JOB_TITLES.scan} (${done}/${total})`;
+      els.pipelineTitle.textContent = `Level ${lvl} scan (${done}/${total})`;
     } else if (jobRunning) {
       activeMode = "job";
       const jt = jobSt.job_type || "job";
@@ -283,7 +462,7 @@ async function pollStatus() {
       setButtonsDisabled(true);
       els.logPanel.classList.remove("hidden");
       els.logOutput.textContent = (jobSt.log_tail || []).join("\n");
-      renderPipeline(JOB_TITLES[jt] || "Working…", jobSt.steps);
+      renderPipeline(JOB_TITLES[jt] || "Working...", jobSt.steps);
       const done = jobSt.steps_completed || 0;
       const total = jobSt.steps_total || 0;
       els.pipelineTitle.textContent = `${JOB_TITLES[jt] || "Progress"} (${done}/${total})`;
@@ -293,21 +472,24 @@ async function pollStatus() {
       if (activeMode === "scan" && scanSt.state === "completed") {
         stopPolling();
         setScanBadge("completed", "Done");
+        const completedLevel = scanSt.scan_level || activeScanLevel;
+        switchLevel(completedLevel);
         if (scanSt.report_file) {
           await loadReportByFilename(scanSt.report_file);
         } else {
-          await loadLatestReport();
+          await loadLatestReportForLevel(completedLevel);
         }
-        await loadHistory();
-        showToast(`Scan complete — ${scanSt.steps_total || 0} checks finished`);
+        await loadHistory(completedLevel);
+        showToast(`Level ${completedLevel} scan complete`);
         els.pipelinePanel.classList.add("hidden");
       } else if (activeMode === "job" && jobSt.state === "completed") {
         stopPolling();
         setScanBadge("completed", "Done");
         showToast(jobSt.result?.message || "Operation completed");
         if (jobSt.job_type === "full_demo" && jobSt.result?.report_file) {
+          switchLevel(1);
           await loadReportByFilename(jobSt.result.report_file);
-          await loadHistory();
+          await loadHistory(1);
         }
         if (jobSt.job_type === "verify" && jobSt.result) {
           showToast(`Verify: ${jobSt.result.passed}/${jobSt.result.total} PASS`);
@@ -350,7 +532,7 @@ async function postDemo(path, label) {
   try {
     setButtonsDisabled(true);
     els.logPanel.classList.remove("hidden");
-    els.logOutput.textContent = `Starting ${label}…\n`;
+    els.logOutput.textContent = `Starting ${label}...\n`;
     activeMode = "job";
     await fetchJSON(path, { method: "POST" });
     showToast(`${label} started`);
@@ -361,6 +543,34 @@ async function postDemo(path, label) {
   }
 }
 
+async function startScan(level) {
+  try {
+    activeScanLevel = level;
+    activeMode = "scan";
+    switchLevel(level);
+    await fetchJSON(`/api/scans/run?level=${level}`, { method: "POST" });
+    setScanBadge("running", level >= 2 ? "L2 Scanning" : "L1 Scanning");
+    setButtonsDisabled(true);
+    els.logPanel.classList.remove("hidden");
+    els.logOutput.textContent = `Starting Level ${level} scan...\n`;
+    showToast(`Level ${level} scan started`);
+    startPolling();
+  } catch (e) {
+    showToast(e.message || "Failed to start scan", true);
+  }
+}
+
+els.levelTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    const level = parseInt(tab.dataset.level, 10);
+    if (level === 3) {
+      switchLevel(3);
+      return;
+    }
+    switchLevel(level);
+  });
+});
+
 els.fullDemoBtn.addEventListener("click", () => postDemo("/api/demo/full", "Full demo"));
 els.setupBtn.addEventListener("click", () => postDemo("/api/demo/setup", "Create misconfigs"));
 els.verifyBtn.addEventListener("click", () => postDemo("/api/demo/verify-run", "Verify resources"));
@@ -369,30 +579,20 @@ els.cleanupBtn.addEventListener("click", () => {
   postDemo("/api/demo/cleanup", "Cleanup");
 });
 
-els.runScanBtn.addEventListener("click", async () => {
-  try {
-    activeMode = "scan";
-    await fetchJSON("/api/scans/run", { method: "POST" });
-    setScanBadge("running", "Scanning");
-    setButtonsDisabled(true);
-    els.logPanel.classList.remove("hidden");
-    els.logOutput.textContent = "Starting scan…\n";
-    showToast("Scan started");
-    startPolling();
-  } catch (e) {
-    showToast(e.message || "Failed to start scan", true);
-  }
-});
+els.runScanL1Btn.addEventListener("click", () => startScan(1));
+els.runScanL2Btn.addEventListener("click", () => startScan(2));
 
 els.refreshBtn.addEventListener("click", async () => {
   await updateCredentials();
-  await loadLatestReport();
+  if (currentLevel !== 3) {
+    await loadLatestReportForLevel(currentLevel);
+  }
 });
 
 els.historySelect.addEventListener("change", () => {
   const filename = els.historySelect.value;
   if (filename && filename !== "No reports") {
-    loadReportByFilename(filename).catch(e => showToast(e.message, true));
+    loadReportByFilename(filename).catch((e) => showToast(e.message, true));
   }
 });
 
@@ -409,7 +609,7 @@ async function init() {
   } catch {
     setScanBadge("idle", "Idle");
   }
-  await loadLatestReport();
+  switchLevel(1);
 }
 
 init();

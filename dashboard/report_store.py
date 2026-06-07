@@ -14,6 +14,7 @@ class ReportSummary(BaseModel):
     filename: str
     scan_id: str
     scan_name: str
+    scan_level: int = 1
     start_time: str
     end_time: str
     duration_seconds: float
@@ -42,6 +43,7 @@ def list_reports() -> list[ReportSummary]:
                     filename=path.name,
                     scan_id=data.get("scan_id", ""),
                     scan_name=data.get("scan_name", ""),
+                    scan_level=int(data.get("scan_level", 1)),
                     start_time=str(data.get("start_time", "")),
                     end_time=str(data.get("end_time", "")),
                     duration_seconds=float(data.get("duration_seconds", 0)),
@@ -67,9 +69,11 @@ def load_report(filename: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_latest_report() -> dict[str, Any] | None:
-    """Load the most recent report."""
+def load_latest_report(level: int | None = None) -> dict[str, Any] | None:
+    """Load the most recent report, optionally filtered by scan level."""
     reports = list_reports()
+    if level is not None:
+        reports = [r for r in reports if r.scan_level == level]
     if not reports:
         return None
     return load_report(reports[0].filename)

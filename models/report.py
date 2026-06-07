@@ -35,3 +35,7 @@ class ScanReport(BaseModel):
     findings: List[ValidatedFinding]
     scan_errors: List[CheckError]
     scan_health: Literal["healthy", "degraded", "partial", "failed"]
+    scan_level: int = 1
+    findings_by_domain: Dict[str, int] = Field(default_factory=dict)
+    deduplication_removed: int = 0
+    domains_scanned: List[str] = Field(default_factory=list)

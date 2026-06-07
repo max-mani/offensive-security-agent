@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offensive Security Agent - Level 1 entry point."""
+"""Offensive Security Agent - Level 1 and Level 2 entry point."""
 
 import argparse
 import logging
@@ -23,12 +23,19 @@ def setup_logging(verbose: bool) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Aivar Offensive Security Agent - Level 1 AWS Infrastructure Scanner"
+        description="Aivar Offensive Security Agent - AWS Infrastructure & Multi-Domain Scanner"
+    )
+    parser.add_argument(
+        "--level",
+        type=int,
+        choices=[1, 2],
+        default=1,
+        help="Scan level: 1=AWS only, 2=multi-domain (default: 1)",
     )
     parser.add_argument(
         "--config",
-        default="checklist.yaml",
-        help="Path to checklist YAML/JSON config (default: checklist.yaml)",
+        default=None,
+        help="Path to checklist YAML/JSON config (default: checklist.yaml or checklist_l2.yaml)",
     )
     parser.add_argument(
         "--verbose",
@@ -42,6 +49,10 @@ def main() -> int:
     project_root = Path(__file__).resolve().parent
     load_dotenv(project_root / ".env")
 
+    config_path = args.config
+    if config_path is None:
+        config_path = "checklist_l2.yaml" if args.level >= 2 else "checklist.yaml"
+
     try:
         resolve_llm_config()
     except ValueError as e:
@@ -49,15 +60,22 @@ def main() -> int:
         return 1
 
     try:
-        report = run_scan(args.config)
+        report = run_scan(config_path, level=args.level)
     except Exception as e:
         logging.exception("Scan failed: %s", e)
         return 1
 
-    print(f"\nScan complete - {report.total_findings} findings ({report.scan_health})")
+    print(f"\nScan complete (Level {report.scan_level}) - {report.total_findings} findings ({report.scan_health})")
     print(f"  Critical: {report.findings_by_severity.get('critical', 0)}")
     print(f"  High:     {report.findings_by_severity.get('high', 0)}")
     print(f"  Medium:   {report.findings_by_severity.get('medium', 0)}")
+    if report.scan_level >= 2:
+        print(f"  Domains:  {report.domains_scanned}")
+        print(f"  By domain: {report.findings_by_domain}")
+        print(f"  Dedup removed: {report.deduplication_removed}")
+        if report.findings:
+            top = report.findings[0]
+            print(f"  Top impact: {top.title} (score={top.impact_score})")
     if report.scan_errors:
         print(f"  Errors:   {report.total_checks_errored} check(s) failed")
     print(f"  Reports written to: reports/")

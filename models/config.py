@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Literal, Optional
 
 
@@ -21,9 +21,28 @@ class ScanMeta(BaseModel):
     output_dir: str = "reports"
 
 
+class APITarget(BaseModel):
+    url: str
+    name: str
+    auth_header: Optional[str] = None
+
+
+class DependencyScanConfig(BaseModel):
+    paths: List[str] = Field(default_factory=list)
+    ecosystems: List[str] = Field(default_factory=lambda: ["PyPI", "npm"])
+
+
+class SecretsScanConfig(BaseModel):
+    paths: List[str] = Field(default_factory=list)
+    exclude: List[str] = Field(default_factory=list)
+
+
 class ScanConfig(BaseModel):
     scan: ScanMeta
     checks: List[CheckConfig]
+    api_targets: List[APITarget] = Field(default_factory=list)
+    dependency_scan: DependencyScanConfig = Field(default_factory=DependencyScanConfig)
+    secrets_scan: SecretsScanConfig = Field(default_factory=SecretsScanConfig)
 
     def get_enabled_checks(self) -> List[CheckConfig]:
         return [c for c in self.checks if c.enabled]

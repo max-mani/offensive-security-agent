@@ -1,0 +1,112 @@
+# checklist_l2.yaml - Level 2 multi-domain security scan configuration
+scan:
+  name: "Aivar Multi-Domain Security Audit"
+  description: "Level 2 — AWS + API + Dependencies + Secrets"
+  aws_region: "ap-south-1"
+  timeout_seconds: 60
+  max_workers: 5
+  llm_model: "llama-3.3-70b-versatile"
+  output_dir: "reports"
+
+checks:
+  - id: iam_root_mfa
+    enabled: true
+    description: "Root account must have MFA"
+    severity_cap: critical
+    tags: [iam, mfa]
+
+  - id: iam_root_access_keys
+    enabled: true
+    description: "Root must not have access keys"
+    severity_cap: critical
+    tags: [iam, credentials]
+
+  - id: iam_user_mfa
+    enabled: true
+    description: "IAM console users must have MFA"
+    severity_cap: high
+    tags: [iam, mfa]
+
+  - id: iam_unused_access_keys
+    enabled: true
+    description: "Access keys unused 90+ days"
+    severity_cap: medium
+    unused_days_threshold: 90
+    tags: [iam, rotation]
+
+  - id: iam_password_policy
+    enabled: true
+    description: "Password policy must meet standards"
+    severity_cap: medium
+    tags: [iam, policy]
+
+  - id: s3_public_acl
+    enabled: true
+    description: "No S3 buckets with public ACL"
+    severity_cap: critical
+    tags: [s3, public-access]
+
+  - id: s3_public_policy
+    enabled: true
+    description: "No S3 buckets with public policy"
+    severity_cap: critical
+    tags: [s3, public-access]
+
+  - id: s3_encryption_disabled
+    enabled: true
+    description: "S3 buckets must have SSE enabled"
+    severity_cap: high
+    tags: [s3, encryption]
+
+  - id: sg_open_ssh
+    enabled: true
+    description: "No SG port 22 open to 0.0.0.0/0"
+    severity_cap: critical
+    tags: [ec2, ssh]
+
+  - id: sg_open_rdp
+    enabled: true
+    description: "No SG port 3389 open to 0.0.0.0/0"
+    severity_cap: critical
+    tags: [ec2, rdp]
+
+  - id: ec2_unencrypted_volumes
+    enabled: true
+    description: "All EBS volumes must be encrypted"
+    severity_cap: high
+    tags: [ec2, encryption]
+
+  - id: cloudtrail_not_logging
+    enabled: true
+    description: "CloudTrail must be enabled"
+    severity_cap: high
+    tags: [cloudtrail, logging]
+
+  - id: ebs_public_snapshots
+    enabled: true
+    description: "No public EBS snapshots"
+    severity_cap: critical
+    tags: [ebs, snapshots]
+
+api_targets:
+  - url: "https://httpbin.org"
+    name: "HTTPBin-Public"
+    auth_header: null
+
+dependency_scan:
+  paths:
+    - "test_vulnerable_requirements.txt"
+  ecosystems:
+    - PyPI
+    - npm
+
+secrets_scan:
+  paths:
+    - "test_secrets.env"
+  exclude:
+    - ".git"
+    - "venv"
+    - "node_modules"
+    - "__pycache__"
+    - ".env"
+    - ".env.admin"

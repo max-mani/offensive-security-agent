@@ -7,7 +7,7 @@ SeverityLevel = Literal["critical", "high", "medium", "low", "info"]
 
 
 class RawFinding(BaseModel):
-    """Output of a boto3 check before LLM enrichment."""
+    """Output of a security check before LLM enrichment."""
 
     check_id: str
     resource_id: str
@@ -16,6 +16,7 @@ class RawFinding(BaseModel):
     region: str
     raw_evidence: Dict[str, Any]
     preliminary_severity: SeverityLevel
+    domain: str = "aws_infrastructure"
     check_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -36,4 +37,6 @@ class ValidatedFinding(BaseModel):
     remediation_steps: List[str]
     remediation_command: str
     confidence_score: int = Field(ge=0, le=100)
+    domain: str = "aws_infrastructure"
+    impact_score: float = 0.0
     scan_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
