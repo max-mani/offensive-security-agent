@@ -1,11 +1,23 @@
 import os
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
-DB_PATH = os.getenv("DB_PATH", "storage/findings.db")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _resolve_db_path() -> str:
+    raw = os.getenv("DB_PATH", "storage/findings.db")
+    path = Path(raw)
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return str(path.resolve())
+
+
+DB_PATH = _resolve_db_path()
 
 
 class FindingRecord(Base):
@@ -121,8 +133,10 @@ def reset_engine(db_path: str | None = None):
     """Reset engine/session factory (for tests)."""
     global _engine, _SessionLocal, DB_PATH
     if db_path is not None:
-        DB_PATH = db_path
+        DB_PATH = str(Path(db_path).resolve())
         os.environ["DB_PATH"] = db_path
+    else:
+        DB_PATH = _resolve_db_path()
     if _engine is not None:
         _engine.dispose()
     _engine = None

@@ -13,12 +13,10 @@ FULL_DEMO_STEPS = [
 
 
 def _full_demo_worker() -> None:
-    # Step 1: Setup (synchronous — avoids nested job_service)
     job_service.update_step("demo_setup", "running")
     misconfig_service.create_misconfigs_sync()
     job_service.update_step("demo_setup", "completed", "5 resources created")
 
-    # Step 2: Verify
     job_service.update_step("demo_verify", "running")
     data = misconfig_service.verify_misconfigs()
     if not data["all_pass"]:
@@ -28,7 +26,6 @@ def _full_demo_worker() -> None:
         raise RuntimeError(f"Verify failed: {data['passed']}/{data['total']} resources visible")
     job_service.update_step("demo_verify", "completed", "5/5 PASS")
 
-    # Step 3: Scan
     job_service.update_step("demo_scan", "running")
     if not scan_service.start_scan("checklist.yaml"):
         raise RuntimeError("Could not start scan")

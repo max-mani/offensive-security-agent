@@ -10,7 +10,7 @@
   <header class="header">
     <div class="header-left">
       <h1>Aivar Offensive Security Agent</h1>
-      <p id="pageSubtitle" class="subtitle">Level 1 - AWS Infrastructure Scanner</p>
+      <p id="pageSubtitle" class="subtitle">Level 1 — AWS Infrastructure Scanner</p>
     </div>
     <div class="header-actions">
       <span id="scanStatusBadge" class="badge badge-idle">Idle</span>
@@ -33,93 +33,400 @@
     </button>
   </nav>
 
+  <!-- Demo job panel (L1 setup/verify/cleanup only — not L1/L2 scans) -->
+  <div id="activeTaskPanel" class="active-task-panel hidden">
+    <div class="active-task-header">
+      <span class="active-task-spinner" aria-hidden="true"></span>
+      <span id="activeTaskTitle" class="active-task-title">Working...</span>
+    </div>
+    <ol id="pipelineSteps" class="pipeline-steps"></ol>
+    <pre id="logOutput" class="task-log"></pre>
+  </div>
+
   <main class="container">
-    <!-- Level 1 -->
+
+    <!-- ═══════════════════════════════ LEVEL 1 ═══════════════════════════════ -->
     <div id="level1View" class="level-view">
       <section class="level-hero level-hero-l1">
-        <h2>Level 1: AWS Infrastructure Scan</h2>
-        <p>13 boto3 checks across IAM, S3, EC2, and CloudTrail. Use the demo flow to create test misconfigs and scan for ~8 findings.</p>
+        <h2>Level 1 — AWS Infrastructure Scanner</h2>
+        <p>13 boto3 checks across IAM, S3, EC2, and CloudTrail. Findings are LLM-enriched with business impact analysis and step-by-step remediation commands.</p>
       </section>
 
       <section class="demo-panel">
         <div class="demo-panel-header">
-          <h2>Demo Environment</h2>
-          <p class="demo-desc">Create intentional AWS misconfigs, scan, and view findings - all from this dashboard.</p>
+          <h3>Demo Environment</h3>
+          <p class="demo-desc">Use the step-by-step flow to create intentional AWS misconfigs, verify them, then scan — or run the full pipeline in one click.</p>
         </div>
+
         <div class="credential-badges">
           <span id="scannerBadge" class="cred-badge">Scanner: checking...</span>
           <span id="adminBadge" class="cred-badge">Admin: checking...</span>
         </div>
-        <div class="demo-actions">
-          <button id="fullDemoBtn" class="btn btn-accent" title="Setup, verify, scan in one click">Run Full Level 1 Scan</button>
-          <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
-          <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
-          <button id="cleanupBtn" class="btn btn-danger">Delete All Test Resources</button>
-          <button id="runScanL1Btn" class="btn btn-primary" title="Scan without creating demo misconfigs">Run No Configuration Level 1 Scan</button>
+
+        <div class="demo-flow">
+          <div class="demo-step-card">
+            <span class="demo-step-num">1</span>
+            <div class="demo-step-body">
+              <strong>Create Misconfigs</strong>
+              <p>Spin up intentional AWS misconfigs using aivar-admin credentials.</p>
+              <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
+            </div>
+          </div>
+          <div class="demo-flow-arrow" aria-hidden="true">→</div>
+          <div class="demo-step-card">
+            <span class="demo-step-num">2</span>
+            <div class="demo-step-body">
+              <strong>Verify Resources</strong>
+              <p>Confirm the scanner account can see the created resources.</p>
+              <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
+            </div>
+          </div>
+          <div class="demo-flow-arrow" aria-hidden="true">→</div>
+          <div class="demo-step-card">
+            <span class="demo-step-num">3</span>
+            <div class="demo-step-body">
+              <strong>Run Scan</strong>
+              <p>Agent runs 13 checks and produces LLM-enriched findings.</p>
+              <button id="runScanL1Btn" class="btn btn-primary">Run Scan Only</button>
+            </div>
+          </div>
         </div>
-        <p class="demo-hint">Requires <code>.env</code> (scanner) and <code>.env.admin</code> (aivar-admin). See README Section 7.</p>
+
+        <div class="demo-actions-row">
+          <button id="fullDemoBtn" class="btn btn-accent" title="Setup → Verify → Scan in one click">
+            ⚡ Run Full Level 1 Demo
+          </button>
+          <button id="cleanupBtn" class="btn btn-danger">Delete Test Resources</button>
+        </div>
+
+        <p class="demo-hint">Requires <code>.env</code> (scanner creds) and <code>.env.admin</code> (aivar-admin). See README Section 7.</p>
+      </section>
+
+      <section id="l1DemoPipelinePanel" class="l3-pipeline-section level-scan-pipeline hidden">
+        <h3>Full Demo Pipeline</h3>
+        <p class="l3-pipeline-desc">Setup → Verify → Scan → Load report — all in one click.</p>
+        <p id="l1DemoPipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
+        <div class="l3-pipeline">
+          <div class="l3-pipeline-step" id="demoStepSetup">
+            <div class="l3-step-num">1</div>
+            <div class="l3-step-body">
+              <h4>Create Misconfigs</h4>
+              <p>Spin up 5 intentional AWS misconfigs using admin credentials.</p>
+              <div class="l3-step-metric" id="demoMetricSetup">Waiting…</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="demoStepVerify">
+            <div class="l3-step-num">2</div>
+            <div class="l3-step-body">
+              <h4>Verify Resources</h4>
+              <p>Confirm the scanner account can see all test resources.</p>
+              <div class="l3-step-metric" id="demoMetricVerify">Waiting…</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="demoStepScan">
+            <div class="l3-step-num">3</div>
+            <div class="l3-step-body">
+              <h4>Run Security Scan</h4>
+              <p>Level 1 AWS scan — hands off to the scan pipeline below.</p>
+              <div class="l3-step-metric" id="demoMetricScan">Waiting…</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="demoStepDone">
+            <div class="l3-step-num">4</div>
+            <div class="l3-step-body">
+              <h4>Load Findings</h4>
+              <p>Open the findings table and report history.</p>
+              <div class="l3-step-metric" id="demoMetricDone">Waiting…</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="l1ScanPipelinePanel" class="l3-pipeline-section level-scan-pipeline">
+        <h3>Scan Pipeline</h3>
+        <p class="l3-pipeline-desc">Level 1 flows through 4 stages — configuration, AWS checks, LLM enrichment, and report generation.</p>
+        <p id="l1ScanPipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
+        <div class="l3-pipeline">
+          <div class="l3-pipeline-step" id="l1StepConfig">
+            <div class="l3-step-num">1</div>
+            <div class="l3-step-body">
+              <h4>Load Configuration</h4>
+              <p>Read checklist, AWS region, and enabled security checks.</p>
+              <div class="l3-step-metric" id="l1MetricConfig">Ready — click Run Scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l1StepAws">
+            <div class="l3-step-num">2</div>
+            <div class="l3-step-body">
+              <h4>AWS Infrastructure</h4>
+              <p>13 boto3 checks across IAM, S3, EC2, and CloudTrail.</p>
+              <div class="l3-step-metric" id="l1MetricAws">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l1StepLlm">
+            <div class="l3-step-num">3</div>
+            <div class="l3-step-body">
+              <h4>LLM Enrichment</h4>
+              <p>Business impact, remediation steps, and severity validation.</p>
+              <div class="l3-step-metric" id="l1MetricLlm">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l1StepReports">
+            <div class="l3-step-num">4</div>
+            <div class="l3-step-body">
+              <h4>Generate Reports</h4>
+              <p>Write JSON and Markdown findings reports to <code>reports/</code>.</p>
+              <div class="l3-step-metric" id="l1MetricReports">Waiting for scan</div>
+            </div>
+          </div>
+        </div>
+        <pre id="l1ScanLog" class="level-scan-log hidden"></pre>
       </section>
     </div>
 
-    <!-- Level 2 -->
+    <!-- ═══════════════════════════════ LEVEL 2 ═══════════════════════════════ -->
     <div id="level2View" class="level-view hidden">
       <section class="level-hero level-hero-l2">
-        <h2>Level 2: Multi-Domain Scan</h2>
-        <p>AWS infrastructure plus API endpoints, dependency CVEs, and secrets scanning. Findings are deduplicated and ranked by business impact.</p>
+        <h2>Level 2 — Multi-Domain Scanner</h2>
+        <p>Level 1 plus API endpoint security, OSV dependency CVEs, and secrets scanning. Findings are deduplicated across domains and ranked by business impact.</p>
         <ul class="level-feature-list">
-          <li>6 API checks (headers, CORS, rate limit, auth bypass, errors, HTTP methods)</li>
+          <li>6 API checks — headers, CORS, rate-limit, auth bypass, error exposure, HTTP methods</li>
           <li>OSV dependency CVE scan on <code>test_vulnerable_requirements.txt</code></li>
-          <li>Secrets scan on <code>test_secrets.env</code></li>
+          <li>Secrets regex scan on <code>test_secrets.env</code></li>
+          <li>Cross-domain deduplication + LLM-powered impact ranking</li>
         </ul>
         <button id="runScanL2Btn" class="btn btn-primary">Run Level 2 Scan</button>
       </section>
+
+      <section id="l2ScanPipelinePanel" class="l3-pipeline-section level-scan-pipeline">
+        <h3>Scan Pipeline</h3>
+        <p class="l3-pipeline-desc">Level 2 flows through 9 stages — four scan domains, enrichment, dedup, ranking, and reports.</p>
+        <p id="l2ScanPipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
+        <div class="l3-pipeline">
+          <div class="l3-pipeline-step" id="l2StepConfig">
+            <div class="l3-step-num">1</div>
+            <div class="l3-step-body">
+              <h4>Load Configuration</h4>
+              <p>Multi-domain checklist — AWS, API, dependencies, and secrets.</p>
+              <div class="l3-step-metric" id="l2MetricConfig">Ready — click Run Level 2 Scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepAws">
+            <div class="l3-step-num">2</div>
+            <div class="l3-step-body">
+              <h4>AWS Infrastructure</h4>
+              <p>13 boto3 checks — same core as Level 1.</p>
+              <div class="l3-step-metric" id="l2MetricAws">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepApi">
+            <div class="l3-step-num">3</div>
+            <div class="l3-step-body">
+              <h4>API Endpoint Scanner</h4>
+              <p>Headers, CORS, rate-limit, auth bypass, errors, HTTP methods.</p>
+              <div class="l3-step-metric" id="l2MetricApi">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepDeps">
+            <div class="l3-step-num">4</div>
+            <div class="l3-step-body">
+              <h4>Dependency CVE Scanner</h4>
+              <p>OSV lookup on vulnerable requirement files.</p>
+              <div class="l3-step-metric" id="l2MetricDeps">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepSecrets">
+            <div class="l3-step-num">5</div>
+            <div class="l3-step-body">
+              <h4>Secrets Scanner</h4>
+              <p>Regex scan for hardcoded credentials in test files.</p>
+              <div class="l3-step-metric" id="l2MetricSecrets">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepLlm">
+            <div class="l3-step-num">6</div>
+            <div class="l3-step-body">
+              <h4>LLM Enrichment</h4>
+              <p>Validate severity and add business impact across all domains.</p>
+              <div class="l3-step-metric" id="l2MetricLlm">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepDedup">
+            <div class="l3-step-num">7</div>
+            <div class="l3-step-body">
+              <h4>Cross-Domain Deduplication</h4>
+              <p>Merge duplicate findings across AWS, API, deps, and secrets.</p>
+              <div class="l3-step-metric" id="l2MetricDedup">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepRanking">
+            <div class="l3-step-num">8</div>
+            <div class="l3-step-body">
+              <h4>Business Impact Ranking</h4>
+              <p>Sort findings by computed impact score.</p>
+              <div class="l3-step-metric" id="l2MetricRanking">Waiting for scan</div>
+            </div>
+          </div>
+          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-step" id="l2StepReports">
+            <div class="l3-step-num">9</div>
+            <div class="l3-step-body">
+              <h4>Generate Reports</h4>
+              <p>Write Level 2 JSON and Markdown reports to <code>reports/</code>.</p>
+              <div class="l3-step-metric" id="l2MetricReports">Waiting for scan</div>
+            </div>
+          </div>
+        </div>
+        <pre id="l2ScanLog" class="level-scan-log hidden"></pre>
+      </section>
     </div>
 
-    <!-- Level 3 -->
+    <!-- ═══════════════════════════════ LEVEL 3 ═══════════════════════════════ -->
     <div id="level3View" class="level-view hidden">
+
       <section class="level-hero level-hero-l3">
-        <h2>Level 3: Autonomous Continuous Scanning</h2>
-        <p>Scheduled multi-domain scans with persistent findings, lifecycle tracking, SLA alerts, Slack escalation, and posture trends.</p>
-        <ul class="level-feature-list">
-          <li>Configurable scan schedule (default: every 6 hours)</li>
-          <li>Finding lifecycle: opened, updated, resolved, re-opened</li>
-          <li>Cross-run deduplication and posture score trends</li>
-          <li>Critical escalation via Slack webhook</li>
-        </ul>
-        <div class="demo-actions">
+        <h2>Level 3 — Autonomous Continuous Scanning</h2>
+        <p>Level 3 runs as a <strong>persistent service</strong>. It remembers findings across scans, tracks their lifecycle (opened → updated → resolved → re-opened), escalates Criticals to Slack, enforces SLA deadlines, and produces a security posture score over time.</p>
+        <div class="l3-controls">
           <button id="runL3OnceBtn" class="btn btn-primary">Run L3 Once</button>
-          <button id="startDaemonBtn" class="btn btn-accent">Start Daemon</button>
+          <button id="startDaemonBtn" class="btn btn-accent">Start Continuous Scans</button>
           <button id="stopDaemonBtn" class="btn btn-danger" disabled>Stop Daemon</button>
-          <button id="refreshL3Btn" class="btn btn-secondary">Refresh L3 Data</button>
+          <button id="refreshL3Btn" class="btn btn-secondary">Refresh</button>
         </div>
-        <p class="demo-hint">Requires <code>SLACK_WEBHOOK_URL</code> in <code>.env</code> for escalation. DB: <code>storage/findings.db</code></p>
       </section>
 
-      <section id="l3Dashboard" class="l3-dashboard">
-        <div class="kpi-grid l3-kpi-grid">
-          <div class="kpi-card kpi-posture">
-            <span class="kpi-label">Posture Score</span>
-            <span id="l3PostureScore" class="kpi-value">—</span>
-          </div>
-          <div class="kpi-card kpi-trend">
-            <span class="kpi-label">Trend</span>
-            <span id="l3TrendDirection" class="kpi-value">—</span>
-          </div>
-          <div class="kpi-card kpi-critical">
-            <span class="kpi-label">Open Critical</span>
-            <span id="l3OpenCritical" class="kpi-value">0</span>
-          </div>
-          <div class="kpi-card kpi-sla">
-            <span class="kpi-label">SLA Breaches</span>
-            <span id="l3SlaBreaches" class="kpi-value">0</span>
-          </div>
-          <div class="kpi-card kpi-daemon">
-            <span class="kpi-label">Daemon</span>
-            <span id="l3DaemonStatus" class="kpi-value">Stopped</span>
-          </div>
+      <!-- L3 KPI Row -->
+      <div class="kpi-grid l3-kpi-grid">
+        <div class="kpi-card kpi-posture">
+          <span class="kpi-label">Posture Score</span>
+          <span id="l3PostureScore" class="kpi-value">—</span>
         </div>
+        <div class="kpi-card kpi-trend">
+          <span class="kpi-label">Trend</span>
+          <span id="l3TrendDirection" class="kpi-value">—</span>
+          <span id="l3TrendHint" class="kpi-hint hidden"></span>
+        </div>
+        <div class="kpi-card kpi-critical" title="Open Critical findings in SQLite (status: opened, updated, or re-opened)">
+          <span class="kpi-label">Open Critical</span>
+          <span id="l3OpenCritical" class="kpi-value">—</span>
+        </div>
+        <div class="kpi-card kpi-sla" title="Findings past SLA deadline (Critical 24h, High 72h)">
+          <span class="kpi-label">SLA Breaches</span>
+          <span id="l3SlaBreaches" class="kpi-value">—</span>
+        </div>
+        <div class="kpi-card kpi-daemon">
+          <span class="kpi-label">Daemon</span>
+          <span id="l3DaemonStatus" class="kpi-value">Stopped</span>
+        </div>
+      </div>
 
-        <div class="meta-grid">
+      <div class="kpi-grid l3-metrics-kpi-grid">
+        <div class="kpi-card kpi-metric-f1">
+          <span class="kpi-label">F1 Score</span>
+          <span id="l3MetricF1" class="kpi-value">—</span>
+        </div>
+        <div class="kpi-card kpi-sla">
+          <span class="kpi-label">SLA Compliance</span>
+          <span id="l3MetricSlaCompliance" class="kpi-value">—</span>
+        </div>
+        <div class="kpi-card kpi-metric-reliability">
+          <span class="kpi-label">Scan Reliability</span>
+          <span id="l3MetricReliability" class="kpi-value">—</span>
+        </div>
+        <div class="kpi-card kpi-metric-resolution">
+          <span class="kpi-label">Resolution Rate</span>
+          <span id="l3MetricResolution" class="kpi-value">—</span>
+        </div>
+      </div>
+
+      <!-- L3 Two-column: pipeline + run info -->
+      <div class="l3-two-col">
+        <!-- Left: 7-stage pipeline -->
+        <section class="l3-pipeline-section">
+          <h3>Autonomous Pipeline</h3>
+          <p class="l3-pipeline-desc">Each scan flows through 7 stages. Live stats populate after the first run.</p>
+          <p id="l3PipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
+          <div class="l3-pipeline">
+            <div class="l3-pipeline-step" id="l3StepScans">
+              <div class="l3-step-num">1</div>
+              <div class="l3-step-body">
+                <h4>Continuous Scans</h4>
+                <p>L2 multi-domain scan on a schedule (default 6h) or on demand.</p>
+                <div class="l3-step-metric" id="l3MetricScans">No scans yet</div>
+              </div>
+            </div>
+            <div class="l3-pipeline-arrow">↓</div>
+            <div class="l3-pipeline-step" id="l3StepDb">
+              <div class="l3-step-num">2</div>
+              <div class="l3-step-body">
+                <h4>Persistent Findings DB</h4>
+                <p>Every finding saved with fingerprint, severity, and timestamps in SQLite.</p>
+                <div class="l3-step-metric" id="l3MetricDb">Empty — run first scan</div>
+              </div>
+            </div>
+            <div class="l3-pipeline-arrow">↓</div>
+            <div class="l3-pipeline-step" id="l3StepDedup">
+              <div class="l3-step-num">3</div>
+              <div class="l3-step-body">
+                <h4>Deduplication Engine</h4>
+                <p>Same issue across runs updates one row — no duplicate records.</p>
+                <div class="l3-step-metric" id="l3MetricDedup">Waiting for first scan</div>
+              </div>
+            </div>
+            <div class="l3-pipeline-arrow">↓</div>
+            <div class="l3-pipeline-step" id="l3StepLifecycle">
+              <div class="l3-step-num">4</div>
+              <div class="l3-step-body">
+                <h4>Lifecycle Tracking</h4>
+                <p>opened → updated → resolved → re-opened as findings appear or disappear.</p>
+                <div class="l3-step-metric" id="l3MetricLifecycle">No lifecycle data yet</div>
+              </div>
+            </div>
+            <div class="l3-pipeline-arrow">↓</div>
+            <div class="l3-pipeline-step" id="l3StepSla">
+              <div class="l3-step-num">5</div>
+              <div class="l3-step-body">
+                <h4>SLA Engine</h4>
+                <p>Critical must be resolved within 24h. High within 72h. Breaches escalate.</p>
+                <div class="l3-step-metric" id="l3MetricSla">No breaches · Critical SLA 24h</div>
+              </div>
+            </div>
+            <div class="l3-pipeline-arrow">↓</div>
+            <div class="l3-pipeline-step" id="l3StepSlack">
+              <div class="l3-step-num">6</div>
+              <div class="l3-step-body">
+                <h4>Slack Escalation</h4>
+                <p>New Critical findings and SLA breaches post to your webhook.</p>
+                <div class="l3-step-metric" id="l3MetricSlack">Checking webhook...</div>
+              </div>
+            </div>
+            <div class="l3-pipeline-arrow">↓</div>
+            <div class="l3-pipeline-step" id="l3StepTrend">
+              <div class="l3-step-num">7</div>
+              <div class="l3-step-body">
+                <h4>Trend Analytics</h4>
+                <p>Posture score 0–100 over time — improving, stable, or degrading.</p>
+                <div class="l3-step-metric" id="l3MetricTrend">Run 2+ scans to see trend</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right col: latest run + posture history + log -->
+        <div class="l3-right-col">
           <div class="meta-card">
             <h3>Latest Scan Run</h3>
             <dl>
@@ -131,84 +438,110 @@
               <dt>Slack</dt><dd id="l3MetaSlack">—</dd>
             </dl>
           </div>
-          <div class="meta-card">
-            <h3>Posture History</h3>
+
+          <div class="meta-card" style="margin-top:1rem">
+            <div class="meta-card-header">
+              <h3>Posture History</h3>
+              <button id="resetL3Btn" type="button" class="btn btn-danger btn-sm" title="Clear all L3 data for a fresh first-run scan">
+                Reset L3 Data
+              </button>
+            </div>
             <div id="l3TrendHistory" class="trend-history">No scan history yet.</div>
           </div>
+
+          <div class="log-panel" style="margin-top:1rem">
+            <h3>L3 Activity Log</h3>
+            <pre id="l3LogOutput" class="task-log"></pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- L3 Data: Findings / Health / Audit in one tabbed panel -->
+      <section class="l3-data-panel">
+        <div class="l3-data-tabs" role="tablist" aria-label="Level 3 data views">
+          <button type="button" class="l3-data-tab l3-data-tab-active" data-l3-tab="findings" role="tab" aria-selected="true">
+            Lifecycle Findings
+          </button>
+          <button type="button" class="l3-data-tab" data-l3-tab="health" role="tab" aria-selected="false">
+            Scan Health
+          </button>
+          <button type="button" class="l3-data-tab" data-l3-tab="audit" role="tab" aria-selected="false">
+            Audit Trail
+          </button>
         </div>
 
-        <section class="findings-section">
-          <h2>Lifecycle Findings (SQLite)</h2>
+        <div id="l3TabFindings" class="l3-data-pane l3-data-pane-active" role="tabpanel">
+          <div class="l3-pane-toolbar">
+            <p class="section-desc">Persistent records from <code>storage/findings.db</code>. Same fingerprint across scans = one row, status updated automatically.</p>
+            <div class="filter-tabs" role="tablist" aria-label="Filter findings by status">
+              <button type="button" class="filter-tab filter-tab-active" data-filter="all" role="tab">All</button>
+              <button type="button" class="filter-tab" data-filter="open" role="tab">Open</button>
+              <button type="button" class="filter-tab" data-filter="reopened" role="tab">Re-opened</button>
+              <button type="button" class="filter-tab" data-filter="resolved" role="tab">Resolved</button>
+            </div>
+          </div>
           <div class="table-wrap">
             <table class="findings-table l3-table">
               <thead>
                 <tr>
-                  <th>Status</th>
-                  <th>Severity</th>
-                  <th>Check</th>
-                  <th>Resource</th>
-                  <th>First Seen</th>
-                  <th>Last Seen</th>
-                  <th>SLA</th>
+                  <th>Status</th><th>Severity</th><th>Check</th><th>Resource</th>
+                  <th>First Seen</th><th>Last Seen</th><th>SLA Deadline</th>
                 </tr>
               </thead>
               <tbody id="l3FindingsBody"></tbody>
             </table>
           </div>
-        </section>
+        </div>
 
-        <section class="findings-section">
-          <h2>Scan Health (Latest Run)</h2>
+        <div id="l3TabHealth" class="l3-data-pane hidden" role="tabpanel">
+          <p class="section-desc">If a check fails or access is denied it appears here as <strong class="text-error">error</strong> — the agent never assumes a resource is clean. Showing latest scan run only.</p>
           <div class="table-wrap">
             <table class="findings-table l3-table">
               <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>Check</th>
-                  <th>Domain</th>
-                  <th>Error</th>
-                </tr>
+                <tr><th>Status</th><th>Check</th><th>Domain</th><th>Error</th></tr>
               </thead>
               <tbody id="l3HealthBody"></tbody>
             </table>
           </div>
-        </section>
+        </div>
 
-        <section class="findings-section">
-          <h2>Audit Trail</h2>
+        <div id="l3TabAudit" class="l3-data-pane hidden" role="tabpanel">
+          <p class="section-desc">Immutable log of every action taken by the agent — scan starts, lifecycle transitions, escalations.</p>
           <div class="table-wrap">
             <table class="findings-table l3-table">
               <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Actor</th>
-                  <th>Action</th>
-                  <th>Entity</th>
-                </tr>
+                <tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th></tr>
               </thead>
               <tbody id="l3AuditBody"></tbody>
             </table>
           </div>
-        </section>
-
-        <section id="l3LogPanel" class="log-panel hidden">
-          <h3>L3 Activity Log</h3>
-          <pre id="l3LogOutput"></pre>
-        </section>
+        </div>
       </section>
+
+    </div><!-- /level3View -->
+
+    <!-- Report History — always visible on L1/L2/L3 (not tied to loaded report) -->
+    <section id="reportHistoryPanel" class="report-history-panel">
+      <div class="meta-card">
+        <div class="meta-card-header">
+          <h3 id="reportHistoryTitle">Report History</h3>
+          <button id="clearReportsBtn" type="button" class="btn btn-danger btn-sm" title="Delete all reports for this level">
+            Clear All Reports
+          </button>
+        </div>
+        <p id="reportHistoryDesc" class="section-desc">Saved scan reports from <code>reports/</code>. Delete individual files or clear all for the current level.</p>
+        <div id="reportList" class="report-list"></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ Shared L1/L2 content (below level views) ═══════════ -->
+
+    <div id="emptyState" class="empty-state hidden">
+      <h2 id="emptyStateTitle">No Level 1 reports yet</h2>
+      <p id="emptyStateDesc">Click <strong>Run Full Level 1 Demo</strong> or <strong>Run Scan Only</strong> to start.</p>
     </div>
 
-    <section id="pipelinePanel" class="pipeline-panel hidden">
-      <h3 id="pipelineTitle">Progress</h3>
-      <ol id="pipelineSteps" class="pipeline-steps"></ol>
-    </section>
-
-    <section id="emptyState" class="empty-state hidden">
-      <h2 id="emptyStateTitle">No Level 1 reports yet</h2>
-      <p id="emptyStateDesc">Click <strong>Run Full Level 1 Scan</strong> or <strong>Run No Configuration Level 1 Scan</strong> to start.</p>
-    </section>
-
-    <section id="dashboardContent" class="hidden">
+    <div id="dashboardContent" class="hidden">
       <div class="kpi-grid">
         <div class="kpi-card kpi-critical">
           <span class="kpi-label">Critical</span>
@@ -236,6 +569,56 @@
         </div>
       </div>
 
+      <section id="agentMetricsPanel" class="agent-metrics-panel">
+        <div class="meta-card">
+          <h3>Agent Performance Metrics</h3>
+          <p id="metricsHeadline" class="metrics-headline hidden"></p>
+          <p id="metricsEmpty" class="metrics-empty section-desc">Run a new scan to generate agent performance metrics.</p>
+          <div id="metricsContent" class="hidden">
+            <div class="kpi-grid metrics-kpi-grid">
+              <div class="kpi-card kpi-metric-precision">
+                <span class="kpi-label">Precision (Critical)</span>
+                <span id="metricPrecision" class="kpi-value">—</span>
+                <span id="metricPrecisionBadge" class="metric-badge">target ≥ 95%</span>
+              </div>
+              <div class="kpi-card kpi-metric-recall">
+                <span class="kpi-label">Recall (Known)</span>
+                <span id="metricRecall" class="kpi-value">—</span>
+                <span id="metricRecallBadge" class="metric-badge">target ≥ 80%</span>
+              </div>
+              <div class="kpi-card kpi-metric-f1">
+                <span class="kpi-label">F1 Score</span>
+                <span id="metricF1" class="kpi-value">—</span>
+                <span id="metricF1Badge" class="metric-badge">target ≥ 0.85</span>
+              </div>
+              <div class="kpi-card kpi-metric-confidence">
+                <span class="kpi-label">Avg Confidence</span>
+                <span id="metricConfidence" class="kpi-value">—</span>
+                <span id="metricConfidenceBadge" class="metric-badge">target ≥ 75%</span>
+              </div>
+            </div>
+            <div class="metrics-details-grid">
+              <details class="metrics-details" open>
+                <summary>Detection Quality</summary>
+                <div id="metricsDetectionDetail" class="metrics-detail-table"></div>
+              </details>
+              <details class="metrics-details">
+                <summary>Speed &amp; Efficiency</summary>
+                <div id="metricsSpeedDetail" class="metrics-detail-table"></div>
+              </details>
+              <details class="metrics-details">
+                <summary>Coverage</summary>
+                <div id="metricsCoverageDetail" class="metrics-detail-table"></div>
+              </details>
+              <details id="metricsL2Section" class="metrics-details hidden">
+                <summary>Multi-Domain (Level 2)</summary>
+                <div id="metricsL2Detail" class="metrics-detail-table"></div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="meta-grid">
         <div class="meta-card">
           <h3>Scan Metadata</h3>
@@ -250,12 +633,10 @@
           </dl>
         </div>
         <div class="meta-card">
-          <h3>Scan History</h3>
-          <label for="historySelect">Select report</label>
-          <select id="historySelect"></select>
-          <div id="scanErrorsPanel" class="errors-panel hidden">
-            <h4>Check Errors</h4>
-            <ul id="scanErrorsList"></ul>
+          <h3>Check Errors</h3>
+          <div id="scanErrorsPanel" class="errors-panel">
+            <p id="scanErrorsEmpty" class="section-desc">No check errors in this report.</p>
+            <ul id="scanErrorsList" class="hidden"></ul>
           </div>
         </div>
       </div>
@@ -266,13 +647,8 @@
           <table class="findings-table">
             <thead id="findingsTableHead">
               <tr>
-                <th></th>
-                <th>Severity</th>
-                <th>Title</th>
-                <th>Resource</th>
-                <th>Check</th>
-                <th>Confidence</th>
-                <th>Actions</th>
+                <th></th><th>Severity</th><th>Title</th><th>Resource</th>
+                <th>Check</th><th>Confidence</th><th>Actions</th>
               </tr>
             </thead>
             <tbody id="findingsBody"></tbody>
@@ -282,9 +658,10 @@
 
       <section id="logPanel" class="log-panel hidden">
         <h3>Activity Log</h3>
-        <pre id="logOutput"></pre>
+        <pre id="logOutputReport"></pre>
       </section>
-    </section>
+    </div>
+
   </main>
 
   <div id="toast" class="toast hidden"></div>

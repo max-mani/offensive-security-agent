@@ -14,3 +14,7 @@ storage/*.db
 agent.log
 .pytest_cache/
 .mypy_cache/
+agent2_level1_plan.md
+agent2_level2_plan.md
+agent2_level3_plan.md
+agent2_metrics_additions.md

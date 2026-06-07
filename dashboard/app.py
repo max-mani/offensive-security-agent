@@ -127,6 +127,29 @@ async def get_report(filename: str):
     return report
 
 
+@app.delete("/api/reports")
+async def delete_reports_bulk(level: int | None = Query(None)):
+    """Delete all report files. Optional level=1 or level=2 to filter."""
+    if level is not None and level not in (1, 2):
+        raise HTTPException(status_code=400, detail="level must be 1 or 2")
+    deleted = report_store.delete_reports(level=level)
+    if not deleted:
+        label = f"Level {level} " if level else ""
+        raise HTTPException(status_code=404, detail=f"No {label}reports found to delete.")
+    return {
+        "message": f"Deleted {len(deleted)} report(s)",
+        "deleted": deleted,
+        "count": len(deleted),
+    }
+
+
+@app.delete("/api/reports/{filename}")
+async def delete_report_endpoint(filename: str):
+    if not report_store.delete_report(filename):
+        raise HTTPException(status_code=404, detail=f"Report not found: {filename}")
+    return {"message": f"Deleted {filename}"}
+
+
 @app.post("/api/scans/run")
 async def run_scan_endpoint(
     level: int = Query(1, ge=1, le=2, description="Scan level: 1=AWS, 2=multi-domain"),
@@ -274,6 +297,28 @@ async def l3_scan_health(scan_run_id: str | None = Query(None)):
 @app.get("/api/l3/trend")
 async def l3_trend():
     return l3_service.get_summary()
+
+
+@app.get("/api/l3/scan-runs")
+async def l3_scan_runs(limit: int = Query(30, ge=1, le=100)):
+    return l3_service.get_scan_runs(limit=limit)
+
+
+@app.delete("/api/l3/scan-runs/{run_id}")
+async def l3_delete_scan_run(run_id: str):
+    if not l3_service.delete_scan_run(run_id):
+        raise HTTPException(status_code=404, detail=f"Scan run not found: {run_id}")
+    return {"message": f"Deleted scan run {run_id}"}
+
+
+@app.delete("/api/l3/reset")
+async def l3_reset():
+    """Clear L3 SQLite data and posture history for a fresh first-run demo."""
+    if daemon_service.is_busy():
+        raise HTTPException(status_code=409, detail="Cannot reset while an L3 scan is running.")
+    if scan_service.is_running() or job_service.is_busy():
+        raise HTTPException(status_code=409, detail="Cannot reset while another operation is running.")
+    return l3_service.reset_all()
 
 
 @app.post("/api/l3/trend/generate")

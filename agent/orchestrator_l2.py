@@ -9,11 +9,12 @@ import boto3
 
 from agent.deduplicator import deduplicate
 from agent.impact_ranker import rank_by_impact
-from agent.intelligence import IntelligenceLayer
+from agent.intelligence import IntelligenceLayer, SEVERITY_ORDER
 from agent.orchestrator import CHECK_REGISTRY
 from checks.api_checks import run_api_domain
 from checks.dependency_checks import run_dependency_domain
 from checks.secrets_checks import run_secrets_domain
+from metrics.calculator import MetricsCalculator
 from models.config import ScanConfig
 from models.finding import RawFinding, ValidatedFinding
 from models.report import CheckError, ScanReport
@@ -62,19 +63,23 @@ class OrchestratorL2:
 
         with ThreadPoolExecutor(max_workers=4) as executor:
             futures = {}
+            attempted_domains: List[str] = []
 
             futures[executor.submit(self._run_aws_domain)] = "aws_infrastructure"
+            attempted_domains.append("aws_infrastructure")
             _progress("domain_aws", "running", "13 AWS checks")
 
             if self.config.api_targets:
                 futures[executor.submit(run_api_domain, self.config.api_targets, self.config)] = (
                     "api_endpoints"
                 )
+                attempted_domains.append("api_endpoints")
                 _progress("domain_api", "running", f"{len(self.config.api_targets)} target(s)")
 
             dep_paths = self.config.dependency_scan.paths
             if dep_paths:
                 futures[executor.submit(run_dependency_domain, dep_paths)] = "dependencies"
+                attempted_domains.append("dependencies")
                 _progress("domain_deps", "running", f"{len(dep_paths)} file(s)")
 
             sec_paths = self.config.secrets_scan.paths
@@ -82,6 +87,7 @@ class OrchestratorL2:
                 futures[executor.submit(
                     run_secrets_domain, sec_paths, self.config.secrets_scan.exclude
                 )] = "secrets"
+                attempted_domains.append("secrets")
                 _progress("domain_secrets", "running", f"{len(sec_paths)} path(s)")
 
             for future in as_completed(futures, timeout=180):
@@ -107,10 +113,18 @@ class OrchestratorL2:
                     )
                     _progress(domain_step_ids.get(domain, f"domain_{domain}"), "failed", str(e))
 
+        all_raw = self._cap_findings(all_raw)
         logger.info("Total raw findings before enrichment: %d", len(all_raw))
 
-        _progress("llm_enrichment", "running", f"Enriching {len(all_raw)} finding(s)")
-        validated = self.intelligence.enrich_batch(all_raw, self.config)
+        total_to_enrich = len(all_raw)
+        _progress("llm_enrichment", "running", f"Enriching {total_to_enrich} finding(s)")
+
+        def _llm_progress(done: int, total: int) -> None:
+            _progress("llm_enrichment", "running", f"Enriching {done}/{total} findings…")
+
+        validated = self.intelligence.enrich_batch(
+            all_raw, self.config, progress_callback=_llm_progress
+        )
         _progress("llm_enrichment", "completed", f"{len(validated)} enriched")
 
         _progress("dedup", "running", "Deduplicating cross-domain findings")
@@ -169,6 +183,15 @@ class OrchestratorL2:
             domains_scanned=sorted(domains_scanned),
         )
 
+        domain_results = {d: d in domains_scanned for d in attempted_domains}
+        report.metrics = MetricsCalculator().compute_l2(
+            report,
+            start_time,
+            end_time,
+            total_before_dedup=pre_dedup_count,
+            domain_results=domain_results,
+        )
+
         _progress("reports", "running", "Writing JSON and Markdown")
         json_path = JSONReporter(self.config.scan.output_dir).write(report)
         md_path = MarkdownReporter(self.config.scan.output_dir).write(report)
@@ -183,6 +206,37 @@ class OrchestratorL2:
         )
         logger.info("Reports: %s, %s", json_path, md_path)
         return report
+
+    def _cap_findings(self, findings: List[RawFinding]) -> List[RawFinding]:
+        """Limit repetitive per-resource findings (e.g. one row per IAM user)."""
+        max_per = self.config.scan.max_findings_per_check
+        if not max_per or max_per < 1:
+            return findings
+
+        grouped: dict[str, list[RawFinding]] = {}
+        for finding in findings:
+            grouped.setdefault(finding.check_id, []).append(finding)
+
+        capped: List[RawFinding] = []
+        dropped = 0
+        for check_id, group in grouped.items():
+            group.sort(
+                key=lambda f: (
+                    SEVERITY_ORDER.get(f.preliminary_severity, 99),
+                    f.resource_id,
+                )
+            )
+            kept = group[:max_per]
+            capped.extend(kept)
+            dropped += max(0, len(group) - len(kept))
+
+        if dropped:
+            logger.info(
+                "[orchestrator] Capped %d finding(s) via max_findings_per_check=%d",
+                dropped,
+                max_per,
+            )
+        return capped
 
     def _run_aws_domain(self) -> tuple[List[RawFinding], List[CheckError]]:
         """Run all Level 1 AWS checks; tag each finding with domain='aws_infrastructure'."""

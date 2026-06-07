@@ -1,8 +1,9 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional
 from datetime import datetime, timezone
 import uuid
 
+from metrics.models import AgentMetrics
 from models.finding import ValidatedFinding
 
 
@@ -41,3 +42,4 @@ class ScanReport(BaseModel):
     domains_scanned: List[str] = Field(default_factory=list)
     posture_score: float | None = None
     lifecycle_summary: Dict[str, int] = Field(default_factory=dict)
+    metrics: Optional[AgentMetrics] = None

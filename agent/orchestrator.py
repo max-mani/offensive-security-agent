@@ -17,6 +17,7 @@ from checks.iam_checks import (
     IAMUserMFACheck,
 )
 from checks.s3_checks import S3EncryptionCheck, S3PublicACLCheck, S3PublicPolicyCheck
+from metrics.calculator import MetricsCalculator
 from models.config import ScanConfig
 from models.finding import RawFinding
 from models.report import CheckError, ScanReport
@@ -200,6 +201,8 @@ class AgentOrchestrator:
             scan_errors=scan_errors,
             scan_health=health,
         )
+
+        report.metrics = MetricsCalculator().compute_l1(report, start_time, end_time)
 
         _progress("reports", "running", "Writing JSON and Markdown")
         json_path = JSONReporter(self.config.scan.output_dir).write(report)

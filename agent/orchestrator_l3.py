@@ -10,8 +10,11 @@ from agent.lifecycle_manager import FindingLifecycleManager
 from agent.orchestrator_l2 import OrchestratorL2
 from agent.sla_tracker import SLATracker
 from checks.api_checks import API_CHECK_CLASSES
+from metrics.calculator import MetricsCalculator
 from models.config import Level3Config, ScanConfig
 from models.report import CheckError, ScanReport
+from reporter.json_reporter import JSONReporter
+from reporter.markdown_reporter import MarkdownReporter
 from reporter.trend_reporter import TrendReporter, compute_posture_score
 from storage.audit_store import AuditStore
 from storage.database import ScanHealthRecord, ScanRun, get_session
@@ -57,6 +60,7 @@ class OrchestratorL3:
         session.commit()
 
         logger.info("=== L3 Scan %s started ===", scan_run_id)
+        logger.info("[l3-phase] scans")
 
         sla_breaches = self.sla_tracker.get_breached()
         if sla_breaches:
@@ -74,8 +78,10 @@ class OrchestratorL3:
             session.close()
             return {"error": str(e), "scan_run_id": scan_run_id}
 
+        logger.info("[l3-phase] db")
         lifecycle = FindingLifecycleManager(scan_run_id, self.l3_config)
         lifecycle_result = lifecycle.process(l2_report.findings)
+        logger.info("[l3-phase] dedup")
 
         new_findings = lifecycle_result["new"]
         updated_findings = lifecycle_result["updated"]
@@ -89,14 +95,18 @@ class OrchestratorL3:
             len(reopened_findings),
             len(resolved_findings),
         )
+        logger.info("[l3-phase] lifecycle")
+        logger.info("[l3-phase] sla")
 
         escalation_candidates = new_findings + reopened_findings
+        logger.info("[l3-phase] escalation")
         self.escalation.escalate_critical(escalation_candidates, scan_run_id)
 
         self._write_scan_health(scan_run_id, l2_report, session, audit)
 
         self.auto_remediation.process_findings(new_findings)
 
+        logger.info("[l3-phase] trend")
         posture_score = compute_posture_score(session)
 
         end_time = datetime.utcnow()
@@ -136,6 +146,26 @@ class OrchestratorL3:
         session.commit()
         session.close()
 
+        total_before_dedup = l2_report.total_findings + l2_report.deduplication_removed
+        domain_results = self._build_domain_results(l2_report)
+        l2_report.scan_level = 3
+        l2_report.posture_score = posture_score
+        l2_report.lifecycle_summary = {
+            "new": len(new_findings),
+            "updated": len(updated_findings),
+            "reopened": len(reopened_findings),
+            "resolved": len(resolved_findings),
+        }
+        l2_report.metrics = MetricsCalculator().compute_l3(
+            l2_report,
+            l2_report.start_time,
+            l2_report.end_time,
+            total_before_dedup=total_before_dedup,
+            domain_results=domain_results,
+        )
+        JSONReporter(self.config.scan.output_dir).write(l2_report)
+        MarkdownReporter(self.config.scan.output_dir).write(l2_report)
+
         trend = {}
         if self.l3_config.trend_report.generate_after_each_scan:
             trend = self.trend_reporter.generate()
@@ -159,8 +189,21 @@ class OrchestratorL3:
             "sla_breaches": len(sla_breaches),
             "trend": trend.get("trend_direction"),
             "health": scan_health,
+            "metrics": l2_report.metrics.model_dump() if l2_report.metrics else None,
             "report": l2_report,
         }
+
+    def _build_domain_results(self, report: ScanReport) -> dict:
+        """Infer domain success from config-enabled domains and report.domains_scanned."""
+        attempted = ["aws_infrastructure"]
+        if self.config.api_targets:
+            attempted.append("api_endpoints")
+        if self.config.dependency_scan.paths:
+            attempted.append("dependencies")
+        if self.config.secrets_scan.paths:
+            attempted.append("secrets")
+        scanned = set(report.domains_scanned or [])
+        return {d: d in scanned for d in attempted}
 
     def _build_check_registry(self) -> list[tuple[str, str]]:
         """Return (check_id, domain) for every check that should run."""

@@ -62,6 +62,8 @@ class MarkdownReporter:
                 lines.append(f"| {SEVERITY_EMOJI[sev]} | {count} |")
 
         lines.extend(["", f"| **Total** | **{report.total_findings}** |", "", "---", ""])
+        lines.extend(self._render_metrics(report.metrics))
+        lines.extend(["", "---", ""])
 
         finding_counter = 1
         for sev in SEVERITY_ORDER:
@@ -115,7 +117,9 @@ class MarkdownReporter:
                 lines.append(f"| {label} | {count} |")
             lines.append("")
 
-        lines.extend(["---", "", "## Findings (Ranked by Business Impact)", ""])
+        lines.extend(["---", ""])
+        lines.extend(self._render_metrics(report.metrics))
+        lines.extend(["", "---", "", "## Findings (Ranked by Business Impact)", ""])
 
         for i, finding in enumerate(report.findings, 1):
             lines.extend(self._render_finding(finding, i, l2=True))
@@ -189,6 +193,120 @@ class MarkdownReporter:
                 "",
             ]
         )
+        return lines
+
+    def _render_metrics(self, metrics) -> list[str]:
+        if not metrics:
+            return []
+
+        d = metrics.detection
+        s = metrics.speed
+        c = metrics.coverage
+
+        recall_display = (
+            f"{d.verified_recall * 100:.0f}%" if d.verified_recall is not None else "N/A"
+        )
+        prec_display = (
+            f"{d.verified_precision_critical * 100:.0f}%"
+            if d.verified_precision_critical is not None
+            else "N/A"
+        )
+        f1_display = f"{d.f1_score:.2f}" if d.f1_score is not None else "N/A"
+
+        def status(ok: bool, warn: bool = False) -> str:
+            if ok:
+                return "PASS"
+            return "WARN" if warn else "FAIL"
+
+        lines = [
+            "## Agent Performance Metrics",
+            "",
+            f"> **{metrics.headline}**",
+            "",
+            "### Detection Quality",
+            "",
+            "| Metric | Value | Target | Status |",
+            "|--------|-------|--------|--------|",
+            f"| Precision (Critical findings) | **{prec_display}** | > 95% | "
+            f"{status(d.verified_precision_critical is not None and d.verified_precision_critical >= 0.95)} |",
+            f"| Recall (Known misconfigs) | **{recall_display}** | > 80% | "
+            f"{status(d.verified_recall is not None and d.verified_recall >= 0.80)} |",
+            f"| F1 Score | **{f1_display}** | > 0.85 | "
+            f"{status(d.f1_score is not None and d.f1_score >= 0.85)} |",
+            f"| Avg Confidence Score | **{d.avg_confidence_score}%** | > 75% | "
+            f"{status(d.avg_confidence_score >= 75)} |",
+            f"| High Confidence Findings | **{d.high_confidence_pct}%** | > 70% | "
+            f"{status(d.high_confidence_pct >= 70)} |",
+            f"| False Positives (Critical) | **{d.false_positives_critical}** | 0 | "
+            f"{status(d.false_positives_critical == 0)} |",
+            "",
+            "### Speed & Efficiency",
+            "",
+            "| Metric | Value |",
+            "|--------|-------|",
+            f"| Total Scan Duration | **{s.scan_duration_seconds}s** |",
+            f"| Avg Check Duration | **{s.avg_check_duration_ms}ms** |",
+            f"| Findings per Second | **{s.findings_per_second}** |",
+            f"| Resources Scanned | **{s.resources_scanned}** |",
+            "",
+            "### Coverage",
+            "",
+            "| Metric | Value | Status |",
+            "|--------|-------|--------|",
+            f"| Checks Succeeded | **{c.checks_succeeded}/{c.total_checks_attempted}** | "
+            f"{status(c.checks_errored == 0, warn=c.checks_errored > 0)} |",
+            f"| Check Success Rate | **{c.check_success_rate * 100:.1f}%** | "
+            f"{status(c.check_success_rate >= 0.90, warn=c.check_success_rate < 0.90)} |",
+            f"| Infrastructure Coverage | **{c.infrastructure_coverage_pct}%** | "
+            f"{status(c.infrastructure_coverage_pct >= 90, warn=c.infrastructure_coverage_pct < 90)} |",
+        ]
+
+        if metrics.level2:
+            l2 = metrics.level2
+            lines += [
+                "",
+                "### Multi-Domain Coverage (Level 2)",
+                "",
+                "| Domain | Findings | Status |",
+                "|--------|----------|--------|",
+            ]
+            for domain, count in l2.findings_per_domain.items():
+                label = DOMAIN_LABELS.get(domain, domain)
+                lines.append(f"| {label} | {count} | PASS |")
+            lines += [
+                "",
+                f"| Deduplication | Removed **{l2.duplicates_removed}** of {l2.total_before_dedup} "
+                f"({l2.deduplication_rate * 100:.1f}%) | PASS |",
+                f"| Domain Success | **{l2.domains_succeeded}/{l2.domains_attempted}** | "
+                f"{status(l2.domain_success_rate >= 1.0, warn=l2.domain_success_rate < 1.0)} |",
+            ]
+
+        if metrics.level3:
+            l3 = metrics.level3
+            lines += [
+                "",
+                "### Autonomous Operation (Level 3)",
+                "",
+                "| Metric | Value | Target | Status |",
+                "|--------|-------|--------|--------|",
+                f"| Posture Score | **{l3.current_posture_score}/100** | > 50 | "
+                f"{status(l3.current_posture_score > 50)} |",
+                f"| Posture Trend | **{l3.posture_trend}** (delta {l3.posture_delta:+.1f}) | improving | "
+                f"{status(l3.posture_trend == 'improving', warn=l3.posture_trend == 'stable')} |",
+                f"| SLA Compliance Rate | **{l3.sla_compliance_rate * 100:.0f}%** | > 80% | "
+                f"{status(l3.sla_compliance_rate >= 0.80)} |",
+                f"| Scan Reliability | **{l3.scan_reliability_rate * 100:.0f}%** "
+                f"({l3.successful_scan_runs}/{l3.total_scan_runs} scans) | > 95% | "
+                f"{status(l3.scan_reliability_rate >= 0.95, warn=l3.scan_reliability_rate < 0.95)} |",
+                f"| Resolution Rate | **{l3.resolution_rate * 100:.0f}%** | > 50% | "
+                f"{status(l3.resolution_rate >= 0.50, warn=l3.resolution_rate < 0.50)} |",
+                f"| Recurrence Rate | **{l3.recurrence_rate * 100:.0f}%** | < 10% | "
+                f"{status(l3.recurrence_rate <= 0.10)} |",
+                f"| Active SLA Breaches | **{l3.active_sla_breaches}** | 0 | "
+                f"{status(l3.active_sla_breaches == 0)} |",
+            ]
+
+        lines.append("")
         return lines
 
     def _render_scan_health(self, report: ScanReport) -> list[str]:

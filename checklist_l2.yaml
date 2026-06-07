@@ -7,6 +7,8 @@ scan:
   max_workers: 5
   llm_model: "llama-3.3-70b-versatile"
   output_dir: "reports"
+  # Cap LLM calls to top-N most critical findings; rest use fast template enrichment
+  max_llm_enrichments: 8
 
 checks:
   - id: iam_root_mfa

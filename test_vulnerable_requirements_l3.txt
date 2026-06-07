@@ -1,0 +1,2 @@
+# Minimal dependency set for Level 3 dashboard scans (1 CVE, saves LLM quota)
+django==2.2.0

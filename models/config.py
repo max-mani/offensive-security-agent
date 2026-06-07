@@ -19,6 +19,8 @@ class ScanMeta(BaseModel):
     max_workers: int = 5
     llm_model: str = "gpt-4o-mini"
     output_dir: str = "reports"
+    max_llm_enrichments: Optional[int] = None
+    max_findings_per_check: Optional[int] = None
 
 
 class APITarget(BaseModel):

@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 from openai import OpenAI
 
@@ -335,9 +335,18 @@ class IntelligenceLayer:
             domain=raw.domain,
         )
 
-    def enrich_single(self, raw: RawFinding, config: ScanConfig) -> ValidatedFinding:
+    def enrich_single(
+        self,
+        raw: RawFinding,
+        config: ScanConfig,
+        llm_budget: set[tuple[str, str]] | None = None,
+    ) -> ValidatedFinding:
         if self._uses_template_enrichment(raw):
             return self._fallback_enrichment(raw, reason="structured domain")
+
+        key = (raw.check_id, raw.resource_id)
+        if llm_budget is not None and key not in llm_budget:
+            return self._fallback_enrichment(raw, reason="LLM budget cap")
 
         if self._llm_disabled:
             return self._fallback_enrichment(raw, reason="LLM rate limit")
@@ -433,20 +442,59 @@ Enrich this finding. Be specific about the business impact and provide a runnabl
             logger.error("[intelligence] LLM enrichment failed for %s: %s", raw.check_id, e)
             return self._fallback_enrichment(raw, reason="LLM error")
 
-    def enrich_batch(self, raw_findings: List[RawFinding], config: ScanConfig) -> List[ValidatedFinding]:
+    def _llm_budget_keys(
+        self, raw_findings: List[RawFinding], config: ScanConfig
+    ) -> set[tuple[str, str]] | None:
+        """Which findings may call the LLM; None means no budget cap."""
+        max_llm = config.scan.max_llm_enrichments
+        if max_llm is None:
+            return None
+
+        llm_candidates = [r for r in raw_findings if not self._uses_template_enrichment(r)]
+        llm_candidates.sort(
+            key=lambda r: (
+                SEVERITY_ORDER.get(r.preliminary_severity, 99),
+                r.check_id,
+                r.resource_id,
+            )
+        )
+        allowed = {
+            (r.check_id, r.resource_id) for r in llm_candidates[: max(0, max_llm)]
+        }
+        if len(llm_candidates) > max_llm:
+            logger.info(
+                "[intelligence] LLM budget: %d API call(s) for %d AWS finding(s); "
+                "%d will use template enrichment",
+                max_llm,
+                len(llm_candidates),
+                len(llm_candidates) - max_llm,
+            )
+        return allowed
+
+    def enrich_batch(
+        self,
+        raw_findings: List[RawFinding],
+        config: ScanConfig,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> List[ValidatedFinding]:
         self.reset_batch_state()
+        llm_budget = self._llm_budget_keys(raw_findings, config)
         template_count = sum(1 for r in raw_findings if self._uses_template_enrichment(r))
         llm_count = len(raw_findings) - template_count
-        if template_count:
-            logger.info(
-                "[intelligence] Enriching %d findings (%d template, %d LLM)",
-                len(raw_findings),
-                template_count,
-                llm_count,
-            )
+        if llm_budget is not None:
+            llm_count = len(llm_budget)
+        logger.info(
+            "[intelligence] Enriching %d findings (%d template domain, up to %d LLM)",
+            len(raw_findings),
+            template_count,
+            llm_count,
+        )
         validated = []
-        for raw in raw_findings:
-            validated.append(self.enrich_single(raw, config))
+        total = len(raw_findings)
+        for i, raw in enumerate(raw_findings):
+            validated.append(self.enrich_single(raw, config, llm_budget))
+            if progress_callback:
+                progress_callback(i + 1, total)
         if self._llm_disabled:
             logger.info("[intelligence] Completed with template fallback after rate limit")
         return validated

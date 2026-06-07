@@ -25,6 +25,8 @@ class ReportSummary(BaseModel):
     total_checks_attempted: int
     total_checks_errored: int
     findings_by_severity: dict[str, int]
+    metrics_headline: str | None = None
+    f1_score: float | None = None
 
 
 def _reports_dir() -> Path:
@@ -38,6 +40,8 @@ def list_reports() -> list[ReportSummary]:
     for path in sorted(_reports_dir().glob("findings_report_*.json"), reverse=True):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+            metrics = data.get("metrics") or {}
+            detection = metrics.get("detection") or {}
             summaries.append(
                 ReportSummary(
                     filename=path.name,
@@ -54,6 +58,8 @@ def list_reports() -> list[ReportSummary]:
                     total_checks_attempted=int(data.get("total_checks_attempted", 0)),
                     total_checks_errored=int(data.get("total_checks_errored", 0)),
                     findings_by_severity=data.get("findings_by_severity", {}),
+                    metrics_headline=metrics.get("headline"),
+                    f1_score=detection.get("f1_score"),
                 )
             )
         except (json.JSONDecodeError, KeyError, TypeError):
@@ -77,3 +83,26 @@ def load_latest_report(level: int | None = None) -> dict[str, Any] | None:
     if not reports:
         return None
     return load_report(reports[0].filename)
+
+
+def delete_report(filename: str) -> bool:
+    """Delete a report JSON (and matching Markdown) by filename."""
+    path = _reports_dir() / filename
+    if not path.exists() or not path.name.startswith("findings_report_"):
+        return False
+    path.unlink()
+    md_path = path.with_suffix(".md")
+    if md_path.exists():
+        md_path.unlink()
+    return True
+
+
+def delete_reports(level: int | None = None) -> list[str]:
+    """Delete reports, optionally filtered by scan level. Returns deleted filenames."""
+    deleted: list[str] = []
+    for summary in list_reports():
+        if level is not None and summary.scan_level != level:
+            continue
+        if delete_report(summary.filename):
+            deleted.append(summary.filename)
+    return deleted

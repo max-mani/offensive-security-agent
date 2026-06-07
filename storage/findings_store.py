@@ -20,6 +20,22 @@ def get_open_findings(limit: int = 200) -> list[dict]:
         session.close()
 
 
+def get_findings_by_status(status: str, limit: int = 200) -> list[dict]:
+    """Return findings matching a specific status value."""
+    session = get_session()
+    try:
+        records = (
+            session.query(FindingRecord)
+            .filter(FindingRecord.status == status)
+            .order_by(FindingRecord.last_seen.desc())
+            .limit(limit)
+            .all()
+        )
+        return [_finding_to_dict(r) for r in records]
+    finally:
+        session.close()
+
+
 def get_all_findings(limit: int = 200) -> list[dict]:
     session = get_session()
     try:
@@ -91,13 +107,139 @@ def get_scan_health(scan_run_id: str | None = None) -> list[dict]:
         session.close()
 
 
-def get_sla_breached_count() -> int:
+def get_escalated_count() -> int:
     session = get_session()
     try:
         return (
             session.query(FindingRecord)
+            .filter(FindingRecord.escalated == True)  # noqa: E712
+            .count()
+        )
+    finally:
+        session.close()
+
+
+def get_lifecycle_counts() -> dict[str, int]:
+    session = get_session()
+    try:
+        counts = {"opened": 0, "updated": 0, "resolved": 0, "re-opened": 0}
+        for status in counts:
+            counts[status] = (
+                session.query(FindingRecord).filter(FindingRecord.status == status).count()
+            )
+        return counts
+    finally:
+        session.close()
+
+
+def get_total_findings_count() -> int:
+    session = get_session()
+    try:
+        return session.query(FindingRecord).count()
+    finally:
+        session.close()
+
+
+def get_scan_run_count() -> int:
+    session = get_session()
+    try:
+        return session.query(ScanRun).count()
+    finally:
+        session.close()
+
+
+def delete_scan_run(scan_run_id: str) -> bool:
+    """Delete one L3 scan run; clear all L3 data if it was the last run."""
+    session = get_session()
+    try:
+        run = session.query(ScanRun).filter_by(id=scan_run_id).first()
+        if not run:
+            return False
+        session.query(ScanHealthRecord).filter_by(scan_run_id=scan_run_id).delete()
+        session.delete(run)
+        session.commit()
+
+        remaining = session.query(ScanRun).count()
+        if remaining == 0:
+            session.query(FindingRecord).delete()
+            session.query(AuditLog).delete()
+            session.query(ScanHealthRecord).delete()
+            session.commit()
+        return True
+    finally:
+        session.close()
+
+
+def clear_all_data() -> dict[str, int]:
+    """Delete all L3 persistence data. Returns row counts per table."""
+    session = get_session()
+    try:
+        counts = {
+            "findings": session.query(FindingRecord).delete(),
+            "scan_runs": session.query(ScanRun).delete(),
+            "audit_log": session.query(AuditLog).delete(),
+            "scan_health": session.query(ScanHealthRecord).delete(),
+        }
+        session.commit()
+        return counts
+    finally:
+        session.close()
+
+
+def get_open_counts_by_severity() -> dict[str, int]:
+    """Count open findings per severity directly in SQL."""
+    session = get_session()
+    try:
+        counts = {s: 0 for s in ["critical", "high", "medium", "low"]}
+        for severity in counts:
+            counts[severity] = (
+                session.query(FindingRecord)
+                .filter(
+                    FindingRecord.status.in_(["opened", "updated", "re-opened"]),
+                    FindingRecord.severity == severity,
+                )
+                .count()
+            )
+        return counts
+    finally:
+        session.close()
+
+
+def sync_sla_breached_flags() -> int:
+    """Mark sla_breached on open findings past deadline (dashboard sync, no Slack)."""
+    session = get_session()
+    now = datetime.utcnow()
+    try:
+        overdue = (
+            session.query(FindingRecord)
             .filter(
-                FindingRecord.sla_breached == True,  # noqa: E712
+                FindingRecord.sla_deadline.isnot(None),
+                FindingRecord.sla_deadline < now,
+                FindingRecord.status.in_(["opened", "updated", "re-opened"]),
+                FindingRecord.sla_breached == False,  # noqa: E712
+            )
+            .all()
+        )
+        for record in overdue:
+            record.sla_breached = True
+        if overdue:
+            session.commit()
+        return len(overdue)
+    finally:
+        session.close()
+
+
+def get_sla_breached_count() -> int:
+    """Open findings whose SLA deadline has passed (matches SLATracker logic)."""
+    sync_sla_breached_flags()
+    session = get_session()
+    now = datetime.utcnow()
+    try:
+        return (
+            session.query(FindingRecord)
+            .filter(
+                FindingRecord.sla_deadline.isnot(None),
+                FindingRecord.sla_deadline < now,
                 FindingRecord.status.in_(["opened", "updated", "re-opened"]),
             )
             .count()

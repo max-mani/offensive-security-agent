@@ -7,6 +7,9 @@ scan:
   max_workers: 5
   llm_model: "llama-3.3-70b-versatile"
   output_dir: "reports"
+  # Groq free tier: cap LLM calls and findings so one L3 run stays under daily quota
+  max_llm_enrichments: 8
+  max_findings_per_check: 1
 
 checks:
   - id: iam_root_mfa
@@ -23,12 +26,12 @@ checks:
 
   - id: iam_user_mfa
     enabled: true
-    description: "IAM console users must have MFA"
+    description: "IAM console users must have MFA (capped to 1 user per scan)"
     severity_cap: high
     tags: [iam, mfa]
 
   - id: iam_unused_access_keys
-    enabled: true
+    enabled: false
     description: "Access keys unused 90+ days"
     severity_cap: medium
     unused_days_threshold: 90
@@ -53,7 +56,7 @@ checks:
     tags: [s3, public-access]
 
   - id: s3_encryption_disabled
-    enabled: true
+    enabled: false
     description: "S3 buckets must have SSE enabled"
     severity_cap: high
     tags: [s3, encryption]
@@ -71,7 +74,7 @@ checks:
     tags: [ec2, rdp]
 
   - id: ec2_unencrypted_volumes
-    enabled: true
+    enabled: false
     description: "All EBS volumes must be encrypted"
     severity_cap: high
     tags: [ec2, encryption]
@@ -95,14 +98,13 @@ api_targets:
 
 dependency_scan:
   paths:
-    - "test_vulnerable_requirements.txt"
+    - "test_vulnerable_requirements_l3.txt"
   ecosystems:
     - PyPI
-    - npm
 
 secrets_scan:
   paths:
-    - "test_secrets.env"
+    - "test_secrets_l3.env"
   exclude:
     - ".git"
     - "venv"
