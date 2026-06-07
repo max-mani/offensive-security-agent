@@ -52,11 +52,11 @@
           <span id="adminBadge" class="cred-badge">Admin: checking...</span>
         </div>
         <div class="demo-actions">
-          <button id="fullDemoBtn" class="btn btn-accent" title="Setup, verify, scan in one click">Run Full Demo</button>
+          <button id="fullDemoBtn" class="btn btn-accent" title="Setup, verify, scan in one click">Run Full Level 1 Scan</button>
           <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
           <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
           <button id="cleanupBtn" class="btn btn-danger">Delete All Test Resources</button>
-          <button id="runScanL1Btn" class="btn btn-primary">Run Level 1 Scan</button>
+          <button id="runScanL1Btn" class="btn btn-primary" title="Scan without creating demo misconfigs">Run No Configuration Level 1 Scan</button>
         </div>
         <p class="demo-hint">Requires <code>.env</code> (scanner) and <code>.env.admin</code> (aivar-admin). See README Section 7.</p>
       </section>
@@ -98,7 +98,7 @@
 
     <section id="emptyState" class="empty-state hidden">
       <h2 id="emptyStateTitle">No Level 1 reports yet</h2>
-      <p id="emptyStateDesc">Click <strong>Run Full Demo</strong> or <strong>Run Level 1 Scan</strong> to start.</p>
+      <p id="emptyStateDesc">Click <strong>Run Full Level 1 Scan</strong> or <strong>Run No Configuration Level 1 Scan</strong> to start.</p>
     </section>
 
     <section id="dashboardContent" class="hidden">

@@ -15,7 +15,7 @@ const LEVEL_SUBTITLES = {
 const EMPTY_STATE = {
   1: {
     title: "No Level 1 reports yet",
-    desc: 'Click <strong>Run Full Demo</strong> or <strong>Run Level 1 Scan</strong> to start.',
+    desc: 'Click <strong>Run Full Level 1 Scan</strong> or <strong>Run No Configuration Level 1 Scan</strong> to start.',
   },
   2: {
     title: "No Level 2 reports yet",
@@ -571,7 +571,7 @@ els.levelTabs.forEach((tab) => {
   });
 });
 
-els.fullDemoBtn.addEventListener("click", () => postDemo("/api/demo/full", "Full demo"));
+els.fullDemoBtn.addEventListener("click", () => postDemo("/api/demo/full", "Run Full Level 1 Scan"));
 els.setupBtn.addEventListener("click", () => postDemo("/api/demo/setup", "Create misconfigs"));
 els.verifyBtn.addEventListener("click", () => postDemo("/api/demo/verify-run", "Verify resources"));
 els.cleanupBtn.addEventListener("click", () => {
