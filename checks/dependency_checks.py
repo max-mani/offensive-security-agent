@@ -8,7 +8,14 @@ from typing import Dict, List, Tuple
 
 from models.finding import RawFinding
 from models.report import CheckError
-from utils.osv_client import cvss_to_severity, query_batch
+from utils.osv_client import (
+    cvss_to_severity,
+    extract_cve_ids,
+    extract_cvss_score,
+    extract_fix_versions,
+    fetch_vulns,
+    query_batch,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,24 +58,6 @@ def parse_package_json(path: str) -> List[Dict]:
     return packages
 
 
-def _extract_cvss_score(vuln: dict) -> float | None:
-    for db in [vuln.get("database_specific", {}), vuln.get("ecosystem_specific", {})]:
-        score = db.get("cvss_score") or db.get("severity_score")
-        if score is not None:
-            try:
-                return float(score)
-            except (TypeError, ValueError):
-                pass
-    for sev in vuln.get("severity", []):
-        if sev.get("type") == "CVSS_V3":
-            score_str = sev.get("score", "")
-            try:
-                return float(score_str)
-            except (TypeError, ValueError):
-                pass
-    return None
-
-
 def run_dependency_domain(scan_paths: List[str]) -> Tuple[List[RawFinding], List[CheckError]]:
     """Parse dependency files, batch query OSV, return CVE findings."""
     all_packages: List[Dict] = []
@@ -105,6 +94,14 @@ def run_dependency_domain(scan_paths: List[str]) -> Tuple[List[RawFinding], List
             )
         )
 
+    stub_ids: List[str] = []
+    for vulns in results:
+        for vuln in vulns:
+            vid = vuln.get("id")
+            if vid:
+                stub_ids.append(vid)
+    vuln_details = fetch_vulns(stub_ids)
+
     findings: List[RawFinding] = []
     for idx, vulns in enumerate(results):
         if not vulns:
@@ -112,22 +109,16 @@ def run_dependency_domain(scan_paths: List[str]) -> Tuple[List[RawFinding], List
         file_path, pkg = source_map[idx]
 
         scored_vulns = []
-        for vuln in vulns:
-            cvss_score = _extract_cvss_score(vuln)
+        for stub in vulns:
+            vuln = vuln_details.get(stub.get("id", ""), stub)
+            cvss_score = extract_cvss_score(vuln)
             scored_vulns.append((cvss_score or 0.0, vuln))
         scored_vulns.sort(key=lambda x: x[0], reverse=True)
 
         for cvss_score, vuln in scored_vulns[:MAX_CVES_PER_PACKAGE]:
             severity = cvss_to_severity(cvss_score if cvss_score else None)
-
-            fix_versions = []
-            for affected in vuln.get("affected", []):
-                for range_info in affected.get("ranges", []):
-                    for event in range_info.get("events", []):
-                        if "fixed" in event:
-                            fix_versions.append(event["fixed"])
-
-            cve_ids = [a for a in vuln.get("aliases", []) if a.startswith("CVE-")]
+            fix_versions = extract_fix_versions(vuln, pkg["name"])
+            cve_ids = extract_cve_ids(vuln)
 
             findings.append(
                 RawFinding(
@@ -147,7 +138,7 @@ def run_dependency_domain(scan_paths: List[str]) -> Tuple[List[RawFinding], List
                         "cvss_score": cvss_score if cvss_score else None,
                         "fix_versions": fix_versions,
                         "summary": vuln.get("summary", ""),
-                        "api_call": "POST api.osv.dev/v1/querybatch",
+                        "api_call": "POST api.osv.dev/v1/querybatch; GET api.osv.dev/v1/vulns/{id}",
                     },
                     preliminary_severity=severity,
                 )

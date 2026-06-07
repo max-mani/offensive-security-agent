@@ -170,9 +170,18 @@ def main() -> int:
     cve_detail = "no dependency findings"
     if dep_findings:
         ev = dep_findings[0].raw_evidence
-        ok_cve = bool(ev.get("package_name") and ev.get("installed_version") and ev.get("cve_ids") is not None)
-        cve_detail = f"pkg={ev.get('package_name')} cves={ev.get('cve_ids')} cvss={ev.get('cvss_score')}"
-    results.append(("4. CVE fields in dependency findings", ok_cve or len(dep_findings) > 0, cve_detail))
+        ok_cve = bool(
+            ev.get("package_name")
+            and ev.get("installed_version")
+            and ev.get("cve_ids")
+            and ev.get("cvss_score") is not None
+            and ev.get("fix_versions")
+        )
+        cve_detail = (
+            f"pkg={ev.get('package_name')} cves={ev.get('cve_ids')} "
+            f"cvss={ev.get('cvss_score')} fix={ev.get('fix_versions')}"
+        )
+    results.append(("4. CVE fields in dependency findings", ok_cve, cve_detail))
 
     ok_fields = all(
         all(getattr(f, field, None) is not None for field in REQUIRED_FINDING_FIELDS)
