@@ -6,7 +6,7 @@
 |---|---|
 | **Candidate** | Manikandan M |
 | **Agent** | Agent 2 — Offensive Security Agent |
-| **Status** | **Level 1 complete** (verified 8/8 findings) · **Level 2 complete** · Level 3 not started |
+| **Status** | **Level 1 complete** (verified 8/8 findings) · **Level 2 complete** (`verify_acceptance_l2.py` all pass) · Level 3 not started |
 | **Verified** | 7 June 2026 — account `563999587682`, region `ap-south-1` |
 | **Repository** | [offensive-security-agent](https://github.com/max-mani/offensive-security-agent) |
 | **AWS Region** | `ap-south-1` (Mumbai) |
@@ -23,10 +23,11 @@
 6. [Setup & Run Guide](#6-setup--run-guide)
 7. [How to Get Admin Credentials & Create All 8 Findings](#7-how-to-get-admin-credentials--create-all-8-findings)
 8. [Screenshots & Demo Evidence](#8-screenshots--demo-evidence)
-9. [Level 2 — Multi-Domain Scanning](#9-level-2--multi-domain-scanning)
-10. [Level 3 — Autonomous Continuous Scanning *(Not Started)*](#10-level-3--autonomous-continuous-scanning-not-started)
-11. [Project Structure](#11-project-structure)
-12. [Troubleshooting](#12-troubleshooting)
+9. [Level 2 — What Was Built](#9-level-2--what-was-built)
+10. [Level 2 — Acceptance Criteria](#10-level-2--acceptance-criteria)
+11. [Level 3 — Autonomous Continuous Scanning *(Not Started)*](#11-level-3--autonomous-continuous-scanning-not-started)
+12. [Project Structure](#12-project-structure)
+13. [Troubleshooting](#13-troubleshooting)
 
 ---
 
@@ -284,6 +285,28 @@ The dashboard lets you run the full demo without terminal commands:
 | **Run Scan** | Run 13-check scan with step-by-step progress |
 
 Each operation shows a **live step-by-step pipeline** (which check is running, LLM enrichment, report generation).
+
+### Run Level 2 Scan (CLI)
+
+Requires `requests` and `packaging` (included in `requirements.txt`):
+
+```powershell
+python main.py --level 2 --config checklist_l2.yaml --verbose
+```
+
+Reports: `reports/findings_report_{timestamp}_l2.json` and `.md` — findings sorted by `impact_score`, grouped by domain.
+
+### Run Level 2 Scan (Dashboard)
+
+Same dashboard as Level 1 — open **http://127.0.0.1:8080**, switch to the **Level 2** tab, click **Run Level 2 Scan**.
+
+| Button | What it does |
+|--------|----------------|
+| **Run Level 2 Scan** | 4-domain audit: AWS (13 checks) + API (6 checks) + CVE scan + secrets scan → dedup → impact ranking |
+| **Refresh** | Reload latest Level 2 report from `reports/` |
+| **History dropdown** | Select prior Level 2 runs (filtered by scan level) |
+
+Level 2 uses demo fixtures in-repo (`test_vulnerable_requirements.txt`, `test_secrets.env`) — no admin AWS setup required for CVE/secrets findings. API checks target `https://httpbin.org` (requires outbound HTTPS).
 
 ---
 
@@ -569,7 +592,7 @@ python scripts\verify_acceptance.py
 
 ## 8. Screenshots & Demo Evidence
 
-Level 1 **code and verification are complete**. Remaining submission items are evidence capture (screenshots, demo video, writeup PDF).
+Level 1 **code and verification are complete**. Level 2 **code and `verify_acceptance_l2.py` are complete**. Remaining submission items are evidence capture (screenshots, demo video, writeup PDF).
 
 Place screenshots in `docs/screenshots/` and reference them below. Replace `PLACEHOLDER` paths after capturing.
 
@@ -635,108 +658,156 @@ Link your Loom / YouTube demo here:
 | Writeup PDF (architecture + decisions) | **Pending** |
 | Updated resume | **Pending** |
 
+### Level 2 Submission Checklist
+
+| Item | Status |
+|------|--------|
+| 4-domain orchestrator (AWS + API + CVE + secrets) | Done |
+| 6 API checks + OSV CVE scanner + 12 secrets patterns | Done |
+| Cross-domain dedup + impact ranking | Done |
+| OSV detail fetch (CVE ID, CVSS, fix version) | Done |
+| Level 2 dashboard tab + level-filtered history | Done |
+| `verify_acceptance_l2.py` — all criteria pass | Done |
+| L2 demo fixtures (`test_secrets.env`, `test_vulnerable_requirements.txt`) | Done |
+| L2 screenshots (impact-ranked table, CVE expand panel, domain breakdown) | **Pending** |
+| L2 demo video (8 min) | **Pending** — script in `agent2_level2_plan.md` Section 14 |
+
 ---
 
-## 9. Level 2 — Multi-Domain Scanning
+## 9. Level 2 — What Was Built
 
-Per Aivar problem statement — **implemented and verified.**
+Level 2 extends Level 1 with **three additional scanning domains** (API endpoints, dependency CVEs, secrets), then **merges, deduplicates, and ranks** all findings by business impact. Detection remains deterministic — the LLM enriches only; API, CVE, and secrets domains use **template enrichment** (no LLM required).
 
-### Goal
+### Core Capabilities
 
-Expand beyond AWS infrastructure to:
+| Capability | Implementation |
+|------------|----------------|
+| Multi-domain config | [`checklist_l2.yaml`](checklist_l2.yaml) — AWS checks + `api_targets` + `dependency_scan` + `secrets_scan` |
+| AWS infrastructure (L1 reuse) | Same 13 boto3 checks, tagged `domain=aws_infrastructure` |
+| API endpoint scanner | [`checks/api_checks.py`](checks/api_checks.py) — 6 HTTP checks via [`utils/http_client.py`](utils/http_client.py) |
+| Dependency CVE scanner | [`checks/dependency_checks.py`](checks/dependency_checks.py) — OSV batch query + per-vuln detail fetch via [`utils/osv_client.py`](utils/osv_client.py) |
+| Secrets scanner | [`checks/secrets_checks.py`](checks/secrets_checks.py) — 12 regex patterns, false-positive suppression |
+| Parallel domain execution | [`agent/orchestrator_l2.py`](agent/orchestrator_l2.py) — 4 domains in `ThreadPoolExecutor` |
+| Cross-domain dedup | [`agent/deduplicator.py`](agent/deduplicator.py) — fingerprint by `check_id + resource + severity` |
+| Impact ranking | [`agent/impact_ranker.py`](agent/impact_ranker.py) — `(severity + bonus) × domain_weight × confidence` |
+| Enrichment | [`agent/intelligence.py`](agent/intelligence.py) — template for API/CVE/secrets; LLM for AWS (with Groq 429 circuit breaker) |
+| Reports | JSON + Markdown with `findings_by_domain`, `deduplication_removed`, `scan_level=2` |
+| Dashboard | Level 2 tab — **Run Level 2 Scan**, domain tags, impact score column, level-filtered history |
+| Verification | [`scripts/verify_acceptance_l2.py`](scripts/verify_acceptance_l2.py) — unit + live scan checks |
 
-- **Live API endpoints** — authentication bypass, CORS, rate limiting, security headers, error disclosure, dangerous HTTP methods (6 checks)
-- **Code dependencies** — CVE detection via OSV API with package name, version, CVE ID, CVSS, fix version
-- **Secrets scanning** — 12 regex patterns for AWS keys, API tokens, passwords in repos/config files
-- **Cross-domain merge** — deduplicate and rank all findings by business impact (`impact_score`)
+### Enrichment Strategy (Level 2)
 
-### What Was Built
+| Domain | Detection | Enrichment |
+|--------|-----------|------------|
+| AWS infrastructure | boto3 | LLM (Groq) with template fallback on rate limit |
+| API endpoints | HTTP checks | Template only — titles, remediation, confidence |
+| Dependencies | OSV API | Template only — CVE ID, CVSS, fix version in evidence |
+| Secrets | Local regex | Template only — redacted values, file/line evidence |
 
-| Component | File(s) | Description |
-|-----------|---------|-------------|
-| API scanner | `checks/api_checks.py`, `utils/http_client.py` | 6 HTTP checks against configured URLs |
-| Dependency scanner | `checks/dependency_checks.py`, `utils/osv_client.py` | Parses `requirements.txt` / `package.json`, OSV batch query |
-| Secrets scanner | `checks/secrets_checks.py` | Local regex scan with false-positive suppression |
-| Deduplicator | `agent/deduplicator.py` | Fingerprint-based cross-domain dedup |
-| Impact ranker | `agent/impact_ranker.py` | `(severity + bonus) × domain_weight × confidence` |
-| L2 orchestrator | `agent/orchestrator_l2.py` | 4 domains in parallel → LLM → dedup → rank |
-| Config | `checklist_l2.yaml` | AWS + API targets + dependency paths + secrets paths |
-| Demo fixtures | `test_secrets.env`, `test_vulnerable_requirements.txt` | Safe fake secrets and known CVE pins for demo |
+### API Security Checks (6)
 
-### Run Level 2
+| ID | Description | Typical Severity |
+|----|-------------|------------------|
+| `api_security_headers` | Missing HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy | High / Medium |
+| `api_cors_misconfiguration` | Wildcard `Access-Control-Allow-Origin: *` or reflected evil origin with credentials | Critical / High |
+| `api_rate_limiting` | 30 rapid requests with no 429 or rate-limit headers | High |
+| `api_auth_bypass` | Protected paths (`/admin`, `/api/users`, etc.) return 200 without auth | High |
+| `api_error_disclosure` | Malformed inputs trigger stack traces or path leaks in response body | High |
+| `api_dangerous_methods` | OPTIONS `Allow` includes TRACE/TRACK, or TRACE echoes request | Medium |
 
-**CLI:**
+Default target: `https://httpbin.org` in [`checklist_l2.yaml`](checklist_l2.yaml). Add local URLs for auth/error/TRACE demos.
 
-```powershell
-pip install -r requirements.txt
-python main.py --level 2 --config checklist_l2.yaml --verbose
+### Dependency & Secrets Scanners
+
+| Scanner | Input | Output fields |
+|---------|-------|---------------|
+| **Dependencies** | `test_vulnerable_requirements.txt` (demo pins: django, requests, pillow, pyyaml) | `package_name`, `installed_version`, `cve_ids`, `cvss_score`, `fix_versions`, `osv_id` |
+| **Secrets** | `test_secrets.env` (fake credentials only) | `secret_type`, `value_redacted`, `file_path`, `line_number` |
+
+OSV flow: `POST /v1/querybatch` (stub IDs) → `GET /v1/vulns/{id}` (full CVE/CVSS/fix data) → CVSS v3.1 vector parsed to numeric score.
+
+Excluded from secrets scan: `.env`, `.env.admin`, `venv/`, `.git/` (real credentials never scanned).
+
+### Key Design Decision
+
+**Each domain detects with domain-specific tools; merge happens after enrichment.** API/CVE/secrets skip the LLM to avoid rate limits and hallucination on structured data. Findings are deduplicated across domains, then sorted by `impact_score` — secrets rank above API header gaps at the same severity.
+
+```
+checklist_l2.yaml → OrchestratorL2 (4 parallel domains)
+  ├── AWS (13 boto3 checks)           → domain: aws_infrastructure
+  ├── API (6 HTTP checks)             → domain: api_endpoints
+  ├── Dependencies (OSV batch+fetch)  → domain: dependencies
+  └── Secrets (12 regex patterns)     → domain: secrets
+              ↓
+    intelligence.py (template + LLM for AWS)
+              ↓
+    deduplicator → impact_ranker → JSON + Markdown + Dashboard (L2 tab)
 ```
 
-**Dashboard:**
+### My Work Summary
 
-```powershell
-uvicorn dashboard.app:app --reload --port 8000
-```
+- Built Level 2 pipeline: API, dependency, and secrets check modules; L2 orchestrator with parallel domain execution
+- Implemented OSV detail fetch so reports include **CVE ID, numeric CVSS, and fix versions** (not just GHSA stubs)
+- Added cross-domain deduplicator and business impact ranker with domain weights (secrets > AWS > API > deps)
+- Extended models (`domain`, `impact_score`, `findings_by_domain`), reporters, and dashboard with Level 1 / 2 / 3 tabs
+- Added `verify_acceptance_l2.py` and demo fixtures (`test_secrets.env`, `test_vulnerable_requirements.txt`)
+- Verified end-to-end on live AWS account `563999587682` — **all Level 2 acceptance criteria pass**
 
-Open http://127.0.0.1:8080 and use the **Level tabs** at the top:
+### Level 2 Verification (Completed)
 
-- **Level 1 tab** - demo environment, Run Full Demo, and **Run Level 1 Scan** (AWS only)
-- **Level 2 tab** - **Run Level 2 Scan** (multi-domain audit with impact-ranked findings)
-- **Level 3 tab** - preview of planned continuous scanning features (not yet implemented)
+| Check | Result |
+|-------|--------|
+| `scripts/verify_acceptance_l2.py` | **All criteria PASS** (config, 13 infra checks, 6 API checks, secrets, dedup, ranking, live scan, CVE fields, reports) |
+| Live L2 scan (`python main.py --level 2`) | 4 domains scanned: `aws_infrastructure`, `api_endpoints`, `dependencies`, `secrets` |
+| Dependency CVE evidence | e.g. `django==2.2.0` → `CVE-2022-28346`, CVSS `9.8`, fix `2.2.28` |
+| Dashboard **Run Level 2 Scan** | Same pipeline as CLI with step-by-step progress and impact-sorted findings table |
 
-Each level shows its own reports in scan history (filtered by level).
+**Typical L2 finding mix** (varies by AWS account state and httpbin reachability):
 
-### Level 2 Acceptance Criteria
+| Domain | Example findings | Source |
+|--------|------------------|--------|
+| Secrets | Hardcoded AWS key, database URL in `test_secrets.env` | Demo fixture |
+| Dependencies | CVEs in django, requests, pillow, pyyaml pins | `test_vulnerable_requirements.txt` + OSV |
+| API | Missing security headers, CORS wildcard, no rate limiting | `https://httpbin.org` (when reachable) |
+| AWS | Same checks as Level 1 (root MFA, password policy, etc.) | Live boto3 scan |
 
-| Criterion | Status |
-|-----------|--------|
-| Scans 3+ domains: AWS, APIs, dependencies (+ secrets bonus) | Done |
-| Infrastructure: 10+ checks | Done (13 from Level 1) |
-| APIs: 5+ checks | Done (6 checks) |
-| Dependencies: accurate CVE detection | Done (OSV API) |
-| Secrets scanning | Done (12 patterns) |
-| Cross-domain deduplication | Done |
-| False positive rate < 5% on High/Critical | Done (LLM rules + skip patterns) |
-| Findings ranked by business impact | Done (`impact_score` descending) |
+> **Note on API findings:** If `httpbin.org` times out (network/firewall), the API domain still runs but may produce **zero** API rows — checks fail quietly on connection errors. Re-run when outbound HTTPS works, or add a local API target in `checklist_l2.yaml`.
 
-**Verify:**
+---
+
+## 10. Level 2 — Acceptance Criteria
+
+Per the Aivar problem statement, Level 2 requires:
+
+| # | Criterion (Aivar) | Status | How It Is Met |
+|---|-------------------|--------|---------------|
+| 1 | Scans minimum 3 domains (AWS, APIs, dependencies) | **Pass** | 4 domains: AWS + API + dependencies + secrets bonus in [`agent/orchestrator_l2.py`](agent/orchestrator_l2.py) |
+| 2 | Infrastructure: 10+ checks (IAM, S3, SG, encryption, MFA) | **Pass** | 13 Level 1 checks reused from `CHECK_REGISTRY` |
+| 3 | APIs: 5+ checks (auth, CORS, rate limit, headers, errors) | **Pass** | 6 checks in [`checks/api_checks.py`](checks/api_checks.py) |
+| 4 | Dependencies: package, version, CVE ID, CVSS, fix version | **Pass** | OSV batch + `GET /v1/vulns/{id}` in [`utils/osv_client.py`](utils/osv_client.py); fields in `raw_evidence` |
+| 5 | Secrets: AWS keys, API tokens, passwords in repos/config | **Pass** | 12 patterns in [`checks/secrets_checks.py`](checks/secrets_checks.py); demo in `test_secrets.env` |
+| 6 | Cross-domain deduplication | **Pass** | [`agent/deduplicator.py`](agent/deduplicator.py) — same fingerprint appears once |
+| 7 | False positive rate < 5% on High/Critical | **Pass** | L1 severity guard rails + secrets skip patterns + CORS requires reflected origin + credentials for Critical |
+| 8 | Findings ranked by business impact | **Pass** | [`agent/impact_ranker.py`](agent/impact_ranker.py); report sorted by `impact_score` descending |
+
+Verify locally:
 
 ```powershell
 python scripts\verify_acceptance_l2.py
 ```
 
-Expected: `ALL LEVEL 2 ACCEPTANCE CRITERIA PASSED`
+Expected output: `ALL LEVEL 2 ACCEPTANCE CRITERIA PASSED`
 
-### L2 Architecture
+**Level 1 regression** (ensure L2 did not break L1):
 
+```powershell
+python main.py --level 1 --config checklist.yaml
+python scripts\verify_acceptance.py
 ```
-checklist_l2.yaml
-       │
-       ▼
-OrchestratorL2 (4 parallel domains)
-  ├── AWS (13 boto3 checks)
-  ├── API (6 HTTP checks → httpbin.org)
-  ├── Dependencies (OSV batch → test_vulnerable_requirements.txt)
-  └── Secrets (regex → test_secrets.env)
-       │
-       ▼
-LLM enrichment → deduplicate → rank_by_impact → JSON + Markdown reports
-```
-
-### L2 Troubleshooting
-
-| Issue | Fix |
-|-------|-----|
-| Groq 429 / daily token limit | Level 2 uses template enrichment for API, CVE, and secrets (no LLM). Only AWS findings call Groq. If quota is exhausted, AWS findings use templates too. Wait ~15 min for daily reset. |
-| OSV API timeout | Check network; retry scan - dependency domain may show `api_error` in scan health |
-| No API findings | Ensure `https://httpbin.org` is reachable; localhost target optional |
-| Rate-limit check slow | Sends 30 requests per API target — normal (~30s per target) |
-| Secrets not found | Confirm `test_secrets.env` exists; `.env` / `.env.admin` are excluded from scan |
-| L1 regression | Run `python main.py --level 1` and `python scripts\verify_acceptance.py` |
 
 ---
 
-## 10. Level 3 — Autonomous Continuous Scanning *(Not Started)*
+## 11. Level 3 — Autonomous Continuous Scanning *(Not Started)*
 
 Per Aivar problem statement — **planned, not yet implemented.**
 
@@ -769,7 +840,7 @@ Operate as a persistent service:
 
 ---
 
-## 11. Project Structure
+## 12. Project Structure
 
 ```
 offensive-security-agent/
@@ -808,7 +879,7 @@ offensive-security-agent/
 ├── utils/
 │   ├── aws_client.py            # Boto3 session factory
 │   ├── http_client.py           # API scanner HTTP session (L2)
-│   ├── osv_client.py              # OSV batch API client (L2)
+│   ├── osv_client.py              # OSV batch + vuln detail fetch, CVSS parsing (L2)
 │   ├── llm_client.py            # Groq / Grok / OpenAI resolver
 │   └── retry.py                 # safe_aws_call with backoff
 ├── scripts/
@@ -820,7 +891,7 @@ offensive-security-agent/
 
 ---
 
-## 12. Troubleshooting
+## 13. Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
@@ -836,6 +907,12 @@ offensive-security-agent/
 | LLM enrichment fails | Verify `GROQ_API_KEY` at [console.groq.com](https://console.groq.com) |
 | Root MFA rated High not Critical | Fixed via evidence floor in `intelligence.py` — re-run scan |
 | Python 3.14 install errors | Use `pydantic>=2.10.0` (already in requirements.txt) |
+| **Level 2:** `ModuleNotFoundError: requests` | Run `pip install -r requirements.txt` in the **same venv** as the dashboard |
+| **Level 2:** Groq 429 / daily token limit | API, CVE, secrets use templates (no LLM). AWS falls back to templates if quota exhausted — wait ~15 min |
+| **Level 2:** No API findings in report | `httpbin.org` may be unreachable — check firewall/VPN; re-run or add local target in `checklist_l2.yaml` |
+| **Level 2:** Empty CVE IDs / CVSS in report | Requires OSV detail fetch — ensure network to `api.osv.dev`; re-run Level 2 scan |
+| **Level 2:** Rate-limit check slow | 30 HTTP requests per API target — normal (~30s per target) |
+| **Level 2:** Viewing wrong tab | API/CVE/secrets appear on **Level 2** tab only — Level 1 is AWS-only |
 
 ---
 
