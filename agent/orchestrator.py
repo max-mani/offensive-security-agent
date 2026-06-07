@@ -1,7 +1,7 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError, as_completed
 from datetime import datetime, timezone
-from typing import Dict, List, Type
+from typing import Callable, Dict, List, Optional, Type
 
 import boto3
 
@@ -59,9 +59,17 @@ class AgentOrchestrator:
             provider=llm.provider,
         )
 
-    def run(self) -> ScanReport:
+    def run(
+        self,
+        progress_callback: Optional[Callable[[str, str, str], None]] = None,
+    ) -> ScanReport:
+        def _progress(step_id: str, status: str, detail: str = "") -> None:
+            if progress_callback:
+                progress_callback(step_id, status, detail)
+
         start_time = datetime.now(timezone.utc)
         logger.info("=== Scan started: %s ===", self.config.scan.name)
+        _progress("init", "completed", self.config.scan.name)
 
         enabled_checks = self.config.get_enabled_checks()
         logger.info(
@@ -91,6 +99,7 @@ class AgentOrchestrator:
                 attempted += 1
                 check_class = CHECK_REGISTRY[check_config.id]
                 check_instance = check_class(check_config, self.session)
+                _progress(check_config.id, "running", check_config.description)
                 future = executor.submit(check_instance.run)
                 future_to_check[future] = check_config.id
 
@@ -103,9 +112,15 @@ class AgentOrchestrator:
                         if isinstance(result, CheckError):
                             logger.warning("[%s] Check error: %s", check_id, result.error_type)
                             scan_errors.append(result)
+                            _progress(check_id, "failed", result.error_message)
                         elif isinstance(result, list):
                             logger.info("[%s] %d findings", check_id, len(result))
                             raw_findings.extend(result)
+                            _progress(
+                                check_id,
+                                "completed",
+                                f"{len(result)} finding(s)" if result else "clean",
+                            )
                     except FuturesTimeoutError:
                         scan_errors.append(
                             CheckError(
@@ -116,6 +131,7 @@ class AgentOrchestrator:
                                 ),
                             )
                         )
+                        _progress(check_id, "failed", "timeout")
                     except Exception as e:
                         scan_errors.append(
                             CheckError(
@@ -124,6 +140,7 @@ class AgentOrchestrator:
                                 error_message=str(e),
                             )
                         )
+                        _progress(check_id, "failed", str(e))
             except FuturesTimeoutError:
                 for future, check_id in future_to_check.items():
                     if not future.done():
@@ -139,7 +156,9 @@ class AgentOrchestrator:
         logger.info("Check errors: %d", len(scan_errors))
 
         logger.info("Starting LLM enrichment...")
+        _progress("llm_enrichment", "running", f"Enriching {len(raw_findings)} finding(s)")
         validated_findings = self.intelligence.enrich_batch(raw_findings, self.config)
+        _progress("llm_enrichment", "completed", f"{len(validated_findings)} enriched")
         validated_findings.sort(key=lambda f: SEVERITY_ORDER.get(f.severity, 99))
 
         end_time = datetime.now(timezone.utc)
@@ -182,8 +201,10 @@ class AgentOrchestrator:
             scan_health=health,
         )
 
+        _progress("reports", "running", "Writing JSON and Markdown")
         json_path = JSONReporter(self.config.scan.output_dir).write(report)
         md_path = MarkdownReporter(self.config.scan.output_dir).write(report)
+        _progress("reports", "completed", json_path.name)
 
         logger.info(
             "=== Scan complete in %.1fs | Health: %s ===",

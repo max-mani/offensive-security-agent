@@ -1,4 +1,5 @@
 .env
+.env.admin
 venv/
 .venv/
 __pycache__/

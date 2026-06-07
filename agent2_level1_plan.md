@@ -3,41 +3,73 @@
 
 **Author:** Manikandan M  
 **Deadline:** Monday, 08 June 2026, 11:00 AM  
-**Status:** Level 1 **COMPLETE** · Level 2 & 3 not started  
+**Status:** Level 1 **COMPLETE** (verified) · Level 2 & 3 not started  
 **Repository:** https://github.com/max-mani/offensive-security-agent  
+**Verified:** 7 June 2026 — 8/8 demo findings, all acceptance criteria pass
 
 ---
 
 ## 0. Implementation Status (Current — June 2026)
 
-This section reflects what was **actually built**, which may differ slightly from the original plan below.
+This section reflects what was **actually built and verified**, which may differ slightly from the original plan below.
 
 | Area | Planned | Implemented |
 |------|---------|-------------|
 | Checks | 13 boto3 checks | ✅ 13 checks in `CHECK_REGISTRY` |
 | LLM | OpenAI `gpt-4o-mini` | ✅ Groq `llama-3.3-70b-versatile` (primary); Grok/OpenAI fallback via `utils/llm_client.py` |
 | Entry point | `main.py` only | ✅ `main.py` + `agent/runner.py` |
-| Dashboard | Not in original plan | ✅ FastAPI dashboard at `dashboard/` (port 8080) |
+| Dashboard | Not in original plan | ✅ Interactive UI: create/verify/cleanup misconfigs, **Run Full Demo**, step-by-step scan |
 | Severity guard | severity_cap + confidence downgrade | ✅ + **evidence floor** (`DETERMINISTIC_EVIDENCE` in `intelligence.py`) |
 | Test setup | `setup_test_misconfigs.ps1` | ✅ Idempotent PS1/SH + `verify_test_misconfigs.ps1` + Console guide in README |
 | Acceptance | 7 criteria | ✅ All pass via `scripts/verify_acceptance.py` (+ criterion 6b: root MFA stays critical) |
-| Demo misconfigs | 5 script + 3 natural = ~8 findings | ⚠️ 3 natural detected; 5 intentional require admin Console/CLI setup (see README §7) |
+| Demo misconfigs | 5 script + 3 natural = ~8 findings | ✅ **8/8 verified** via `run_full_test_and_cleanup.py` and dashboard (5 Critical, 2 High, 1 Medium) |
 | AWS account | ap-south-1 | ✅ Account `563999587682`, region `ap-south-1` |
+
+### 0.1 Verified Demo Results (7 June 2026)
+
+```
+Setup:   5/5 misconfigs created (admin via boto3)
+Verify:  5/5 PASS (scanner read-only)
+Scan:    13/13 checks healthy, 8 findings
+         Critical: 5 | High: 2 | Medium: 1
+Cleanup: All aivar-test-* resources removed
+```
+
+| # | Check ID | Severity | Source |
+|---|----------|----------|--------|
+| 1 | `s3_public_acl` | Critical | Intentional — public-read ACL bucket |
+| 2 | `s3_public_policy` | Critical | Intentional — public read bucket policy |
+| 3 | `sg_open_ssh` | Critical | Intentional — port 22 / 0.0.0.0/0 |
+| 4 | `sg_open_rdp` | Critical | Intentional — port 3389 / 0.0.0.0/0 |
+| 5 | `iam_root_mfa` | Critical | Natural — root MFA disabled |
+| 6 | `iam_user_mfa` | High | Intentional — `test-no-mfa-user` |
+| 7 | `cloudtrail_not_logging` | High | Natural — no active trail |
+| 8 | `iam_password_policy` | Medium | Natural — weak/no policy |
+
+**Demo misconfig change (vs original plan):** The 2nd intentional resource was planned as an unencrypted S3 bucket (`s3_encryption_disabled`). Account-level S3 default encryption on newer AWS accounts prevents creating buckets without encryption. The demo now creates a **public bucket policy** (`s3_public_policy`) instead. The `s3_encryption_disabled` check still runs as part of the 13-check scan.
 
 ### Files Added Beyond Original Plan
 
 ```
-dashboard/                    # Web UI (FastAPI + static frontend)
-agent/runner.py               # Shared scan entry for CLI + dashboard
-utils/llm_client.py           # Groq / Grok / OpenAI provider resolution
+dashboard/                         # Web UI (FastAPI + static frontend)
+  misconfig_service.py             # boto3 create/verify/cleanup (no CLI from UI)
+  demo_service.py                  # Full demo orchestration
+  scan_service.py                  # Step-by-step scan progress
+agent/runner.py                    # Shared scan entry for CLI + dashboard
+utils/llm_client.py                # Groq / Grok / OpenAI provider resolution
+scripts/run_setup_as_admin.ps1
 scripts/verify_test_misconfigs.ps1
 scripts/verify_acceptance.py
-docs/screenshots/             # Demo screenshot placeholders (see README §8)
+scripts/run_full_test_and_cleanup.py
+.env.admin.example                 # Admin creds template (copy → .env.admin)
+docs/screenshots/                  # Demo screenshot placeholders (see README §8)
 ```
 
-### Key Code Change: Evidence Floor
+### Key Code Changes
 
-`agent/intelligence.py` applies `_apply_evidence_floor()` after LLM enrichment so findings with deterministic boto3 proof (e.g. `AccountMFAEnabled=0`, `OpenCIDRs`, `PublicGrants`) cannot be downgraded below `preliminary_severity`.
+**Evidence floor** — `agent/intelligence.py` applies `_apply_evidence_floor()` after LLM enrichment so findings with deterministic boto3 proof (e.g. `AccountMFAEnabled=0`, `OpenCIDRs`, `PublicGrants`) cannot be downgraded below `preliminary_severity`.
+
+**Public-policy demo bucket** — `dashboard/misconfig_service.py` and setup scripts create `aivar-test-policy-{timestamp}` with a public `s3:GetObject` policy (Block Public Access disabled on bucket only) instead of `aivar-test-noenc-*`.
 
 ---
 
@@ -179,8 +211,10 @@ offensive-security-agent/
 │   └── retry.py               ← safe_aws_call with exponential backoff
 ├── scripts/
 │   ├── setup_test_misconfigs.ps1 / .sh
+│   ├── run_setup_as_admin.ps1
 │   ├── verify_test_misconfigs.ps1
 │   ├── verify_acceptance.py
+│   ├── run_full_test_and_cleanup.py
 │   └── cleanup_test_misconfigs.ps1
 ├── docs/screenshots/          ← Demo screenshot placeholders
 └── reports/                   ← Generated scan reports
@@ -193,28 +227,90 @@ offensive-security-agent/
 > Do this FIRST before writing code. Takes 30 minutes.
 > All on AWS Free Tier — cost is ₹0.
 
-### 3.1 Create Test Account / Use Existing
+### 3.1 Two IAM Users — Scanner + Admin
 
-- Go to aws.amazon.com → Sign In → use existing or create free tier
-- Set region to `ap-south-1` (Mumbai) or `us-east-1`
-- Create an IAM user with `ReadOnlyAccess` policy → generate access key → paste in `.env`
+| User | File | Policies | Used for |
+|------|------|----------|----------|
+| `aivar-scanner` | `.env` | S3/IAM/EC2/CloudTrail ReadOnly | All scans & dashboard |
+| `aivar-admin` | `.env.admin` | `AdministratorAccess` | Setup/cleanup scripts only |
 
-### 3.2 Create Intentional Misconfigs (your scan targets)
+**How to get admin credentials:**
 
-Run these CLI commands or do it via console. These are what your agent will find.
+1. Sign in to [AWS Console](https://console.aws.amazon.com) as root
+2. IAM → Users → Create user `aivar-admin`
+3. Attach policy **`AdministratorAccess`**
+4. Security credentials → Create access key (CLI) → copy keys
+5. `copy .env.admin.example .env.admin` → paste admin keys
+6. **Never** put admin keys in `.env`
+
+**How to get scanner credentials:**
+
+1. IAM → Users → Create user `aivar-scanner`
+2. Attach: `AmazonS3ReadOnlyAccess`, `IAMReadOnlyAccess`, `AmazonEC2ReadOnlyAccess`, `AWSCloudTrailReadOnlyAccess`
+3. Create access key → paste into `.env`
+
+Region: `ap-south-1` (Mumbai) for both users.
+
+### 3.2 Create Intentional Misconfigs (8-finding demo)
+
+**5 intentional resources** + **3 natural account defaults** = **8 findings** (5 Critical, 2 High, 1 Medium).
+
+| # | Resource created | Check ID | Severity |
+|---|------------------|----------|----------|
+| 1 | `aivar-test-public-{ts}` — public-read ACL | `s3_public_acl` | Critical |
+| 2 | `aivar-test-policy-{ts}` — public read policy | `s3_public_policy` | Critical |
+| 3 | `test-no-mfa-user` — console, no MFA | `iam_user_mfa` | High |
+| 4 | `open-ssh-sg` — port 22 / 0.0.0.0/0 | `sg_open_ssh` | Critical |
+| 5 | `open-rdp-sg` — port 3389 / 0.0.0.0/0 | `sg_open_rdp` | Critical |
+
+Natural (already present): `iam_root_mfa`, `cloudtrail_not_logging`, `iam_password_policy`.
+
+> **Why not unencrypted S3?** Account-level S3 default encryption applies AES256 to all new buckets — `s3_encryption_disabled` cannot be demo'd reliably. Use `s3_public_policy` instead (see README §7).
+
+**Recommended — Dashboard (no terminal):**
+
+```powershell
+python -m uvicorn dashboard.app:app --host 127.0.0.1 --port 8080 --reload
+# Open http://127.0.0.1:8080 → click "Run Full Demo"
+```
+
+**Recommended — Terminal (Windows):**
+
+```powershell
+.\scripts\run_setup_as_admin.ps1       # uses .env.admin
+.\scripts\verify_test_misconfigs.ps1   # uses .env scanner — expect 5/5 PASS
+python main.py --config checklist.yaml --verbose   # expect 8 findings
+.\scripts\cleanup_test_misconfigs.ps1   # when done
+```
+
+**End-to-end automated test:**
+
+```powershell
+python scripts\run_full_test_and_cleanup.py   # setup → verify → scan → cleanup
+```
+
+Or run CLI commands manually with admin creds:
 
 ```bash
-# 1. S3 bucket with public ACL (CRITICAL finding)
+# 1. S3 bucket with public ACL (CRITICAL — s3_public_acl)
 aws s3api create-bucket --bucket aivar-test-public-$(date +%s) --region ap-south-1 \
   --create-bucket-configuration LocationConstraint=ap-south-1
+aws s3api put-public-access-block --bucket <bucket-name> \
+  --public-access-block-configuration BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false
+aws s3api put-bucket-ownership-controls --bucket <bucket-name> \
+  --ownership-controls Rules=[{ObjectOwnership=ObjectWriter}]
 aws s3api put-bucket-acl --bucket <bucket-name> --acl public-read
 
-# 2. S3 bucket without encryption (HIGH finding)
-aws s3api create-bucket --bucket aivar-test-noenc-$(date +%s) --region ap-south-1 \
+# 2. S3 bucket with public read policy (CRITICAL — s3_public_policy)
+# Replaces unencrypted bucket — account default encryption blocks s3_encryption_disabled demo
+aws s3api create-bucket --bucket aivar-test-policy-$(date +%s) --region ap-south-1 \
   --create-bucket-configuration LocationConstraint=ap-south-1
-# Do NOT add encryption — absence is the finding
+aws s3api put-public-access-block --bucket <bucket-name> \
+  --public-access-block-configuration BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false
+aws s3api put-bucket-policy --bucket <bucket-name> --policy \
+  '{"Version":"2012-10-17","Statement":[{"Sid":"PublicRead","Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::<bucket-name>/*"}]}'
 
-# 3. IAM user without MFA (HIGH finding)
+# 3. IAM user without MFA (HIGH — iam_user_mfa)
 aws iam create-user --user-name test-no-mfa-user
 aws iam create-login-profile --user-name test-no-mfa-user --password TestPass@123 --no-password-reset-required
 # Do NOT attach MFA device — absence is the finding
@@ -1792,7 +1888,7 @@ The report's scan_health field reflects how many checks fell into Case C.
 ```markdown
 # Security Audit Report — Aivar Infrastructure
 **Date:** 2026-06-07 | **Account:** 123456789012 | **Region:** ap-south-1  
-**Duration:** 83.4s | **Health:** ⚠️ Degraded | **Findings:** 7
+**Duration:** 21.4s | **Health:** ✅ Healthy | **Findings:** 8
 
 ---
 
@@ -1800,10 +1896,10 @@ The report's scan_health field reflects how many checks fell into Case C.
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 3 |
+| 🔴 Critical | 5 |
 | 🟠 High | 2 |
 | 🟡 Medium | 1 |
-| Total | 7 |
+| Total | 8 |
 
 ---
 
@@ -1843,7 +1939,7 @@ aws ec2 revoke-security-group-ingress --group-id sg-0a1b2c3d4e5f \
 ```
 Hour 1: Setup
   ✅ pip install, .env, AWS free tier account
-  ✅ Create 6 intentional misconfigs in AWS console/CLI
+  ✅ Create 5 intentional misconfigs in AWS (8-finding demo verified)
   ✅ Create project structure (all empty files)
 
 Hour 2: Models + Config
@@ -1874,7 +1970,7 @@ Hour 8: Orchestrator + Reporters
 
 Hour 9: End-to-end run
   ✅ python main.py --config checklist.yaml
-  ⚠️ Verify findings match intentional misconfigs — requires admin setup (see README §7)
+  ✅ Verify findings match intentional misconfigs — 8/8 via run_full_test_and_cleanup.py
   ✅ Verify scan_errors appear for any AccessDenied checks
   ✅ Verify output files in reports/
 
@@ -1885,11 +1981,15 @@ Hour 10: Polish
   ✅ Verify all 7 acceptance criteria are met (+ 6b root MFA critical)
 
 Post-Level-1 additions:
-  ✅ Web dashboard (FastAPI)
+  ✅ Web dashboard (FastAPI) with Run Full Demo
+  ✅ dashboard/misconfig_service.py — boto3 create/verify/cleanup
   ✅ Groq LLM provider support (utils/llm_client.py)
   ✅ Evidence floor in intelligence.py
   ✅ verify_test_misconfigs.ps1 + idempotent setup scripts
+  ✅ run_full_test_and_cleanup.py — automated end-to-end demo test
+  ✅ s3_public_policy demo bucket (replaces s3_encryption_disabled on encrypted-by-default accounts)
   ✅ docs/screenshots/ folder for demo evidence
+  ✅ README.md — company-facing submission document
 ```
 
 ---
@@ -1933,16 +2033,25 @@ Post-Level-1 additions:
      → scripts/verify_acceptance.py — ALL ACCEPTANCE CRITERIA PASSED
 ```
 
-### Creating Demo Misconfigs (5 intentional resources)
+### Creating Demo Misconfigs (5 intentional → 8 total findings) — VERIFIED
 
-See **README.md Section 7** for full Console and CLI instructions.
+See **README.md Section 7** for full instructions.
+
+| Step | Requires | Command |
+|------|----------|---------|
+| 1. Get admin keys | IAM user `aivar-admin` + `AdministratorAccess` | Save to `.env.admin` |
+| 2. Create misconfigs | `.env.admin` | Dashboard **Run Full Demo** or `.\scripts\run_setup_as_admin.ps1` |
+| 3. Verify (scanner) | `aivar-scanner` in `.env` | `.\scripts\verify_test_misconfigs.ps1` → **5/5 PASS** |
+| 4. Scan | `aivar-scanner` in `.env` | `python main.py --verbose` → **8 findings** (5C / 2H / 1M) |
+| 5. Cleanup | Admin credentials | Dashboard **Delete All Test Resources** or `.\scripts\cleanup_test_misconfigs.ps1` |
 
 | Method | Requires | Script / Steps |
 |--------|----------|----------------|
-| AWS Console | Root/admin browser login | README §7 Option A (5 resources) |
-| CLI script | Admin AWS CLI credentials | `scripts/setup_test_misconfigs.ps1` |
-| Verify (scanner) | aivar-scanner in `.env` | `scripts/verify_test_misconfigs.ps1` → 5/5 PASS |
-| Cleanup | Admin credentials | `scripts/cleanup_test_misconfigs.ps1` |
+| **Dashboard** *(recommended)* | `.env` + `.env.admin` | `uvicorn dashboard.app:app` → **Run Full Demo** |
+| AWS Console | Root/admin browser login | README §7 (5 resources) |
+| CLI script (safe) | `.env.admin` | `scripts/run_setup_as_admin.ps1` |
+| CLI script (direct) | Admin env vars in terminal | `scripts/setup_test_misconfigs.ps1` |
+| Automated test | Both cred files | `python scripts/run_full_test_and_cleanup.py` |
 
 ---
 
@@ -1963,9 +2072,10 @@ detection layer. This is the key design decision — mention it explicitly.
 2:00 — Show the checklist.yaml
 "The agent is config-driven. To add a new check, you add one entry here. No code changes."
 
-3:00 — Run the scan live
-python main.py --config checklist.yaml --verbose
-Show it running in real-time with logs.
+3:00 — Run the full demo
+Option A: Dashboard → "Run Full Demo" (create misconfigs → verify → scan → 8 findings)
+Option B: python main.py --config checklist.yaml --verbose
+Show step-by-step progress and 13/13 checks healthy.
 
 5:00 — Open the JSON report
 Show a Critical finding. Walk through: resource_arn → raw_evidence → business_impact →
@@ -2033,4 +2143,4 @@ Submission document for reviewers: **README.md** (company-facing, includes scree
 
 *Plan prepared for Aivar Innovations AI/ML Hiring Challenge — June 2026*  
 *Manikandan M — 19manikandan2005@gmail.com*  
-*Last updated: June 2026 — Level 1 implementation complete*
+*Last updated: 7 June 2026 — Level 1 complete and verified (8/8 findings, all acceptance criteria pass)*

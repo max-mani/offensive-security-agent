@@ -55,29 +55,26 @@ foreach ($bucket in $publicBuckets) {
 }
 Add-Result "s3_public_acl (public S3 bucket)" $publicAclOk $publicDetail
 
-# 2. Unencrypted S3 bucket
-$noEncOk = $false
-$noEncDetail = "No aivar-test-noenc-* bucket found"
+# 2. Public S3 bucket policy
+$policyOk = $false
+$policyDetail = "No aivar-test-policy-* bucket found"
 try {
-    $noEncBuckets = aws s3api list-buckets --query "Buckets[?starts_with(Name, 'aivar-test-noenc')].Name" --output json 2>&1 | ConvertFrom-Json
-    if ($noEncBuckets) {
-        foreach ($bucket in @($noEncBuckets)) {
-            try {
-                aws s3api get-bucket-encryption --bucket $bucket 2>&1 | Out-Null
-            } catch {
-                if ($_.ToString() -match "ServerSideEncryptionConfigurationNotFoundError") {
-                    $noEncOk = $true
-                    $noEncDetail = "Bucket $bucket has no encryption configured"
-                    break
-                }
+    $policyBuckets = aws s3api list-buckets --query "Buckets[?starts_with(Name, 'aivar-test-policy')].Name" --output json 2>&1 | ConvertFrom-Json
+    if ($policyBuckets) {
+        foreach ($bucket in @($policyBuckets)) {
+            $status = aws s3api get-bucket-policy-status --bucket $bucket --output json 2>&1 | ConvertFrom-Json
+            if ($status.PolicyStatus.IsPublic -eq $true) {
+                $policyOk = $true
+                $policyDetail = "Bucket $bucket has public policy"
+                break
             }
         }
-        if (-not $noEncOk -and $noEncBuckets) {
-            $noEncDetail = "Bucket(s) exist but encryption may be enabled"
+        if (-not $policyOk -and $policyBuckets) {
+            $policyDetail = "Bucket(s) exist but policy is not public"
         }
     }
 } catch { }
-Add-Result "s3_encryption_disabled (unencrypted S3)" $noEncOk $noEncDetail
+Add-Result "s3_public_policy (public S3 policy)" $policyOk $policyDetail
 
 # 3. IAM user without MFA
 $iamOk = $false

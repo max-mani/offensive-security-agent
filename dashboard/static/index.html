@@ -20,10 +20,32 @@
   </header>
 
   <main class="container">
+    <section class="demo-panel">
+      <div class="demo-panel-header">
+        <h2>Demo Environment</h2>
+        <p class="demo-desc">Create intentional AWS misconfigs, scan, and view ~8 findings — all from this dashboard.</p>
+      </div>
+      <div class="credential-badges">
+        <span id="scannerBadge" class="cred-badge">Scanner: checking…</span>
+        <span id="adminBadge" class="cred-badge">Admin: checking…</span>
+      </div>
+      <div class="demo-actions">
+        <button id="fullDemoBtn" class="btn btn-accent" title="Setup → Verify → Scan in one click">Run Full Demo</button>
+        <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
+        <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
+        <button id="cleanupBtn" class="btn btn-danger">Delete All Test Resources</button>
+      </div>
+      <p class="demo-hint">Requires <code>.env</code> (scanner) and <code>.env.admin</code> (aivar-admin). See README §7.</p>
+    </section>
+
+    <section id="pipelinePanel" class="pipeline-panel hidden">
+      <h3 id="pipelineTitle">Progress</h3>
+      <ol id="pipelineSteps" class="pipeline-steps"></ol>
+    </section>
+
     <section id="emptyState" class="empty-state hidden">
       <h2>No scan reports yet</h2>
-      <p>Click <strong>Run Scan</strong> to start your first AWS security audit.</p>
-      <p class="hint">Tip: run <code>scripts/setup_test_misconfigs.ps1</code> as admin for demo findings.</p>
+      <p>Click <strong>Run Full Demo</strong> or <strong>Run Scan</strong> to start.</p>
     </section>
 
     <section id="dashboardContent" class="hidden">
@@ -90,7 +112,7 @@
       </section>
 
       <section id="logPanel" class="log-panel hidden">
-        <h3>Scan Log</h3>
+        <h3>Activity Log</h3>
         <pre id="logOutput"></pre>
       </section>
     </section>

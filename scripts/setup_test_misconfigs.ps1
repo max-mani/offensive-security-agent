@@ -86,6 +86,8 @@ try {
         --create-bucket-configuration LocationConstraint=$Region 2>&1 | Out-Null
     aws s3api put-public-access-block --bucket $PublicBucket `
         --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false" 2>&1 | Out-Null
+    aws s3api put-bucket-ownership-controls --bucket $PublicBucket `
+        --ownership-controls Rules=[{ObjectOwnership=ObjectWriter}] 2>&1 | Out-Null
     aws s3api put-bucket-acl --bucket $PublicBucket --acl public-read 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Add-Result "s3_public_acl" $true "Bucket $PublicBucket with public-read ACL"
@@ -96,19 +98,26 @@ try {
     Add-Result "s3_public_acl" $false $_.Exception.Message
 }
 
-# 2. S3 bucket without encryption (HIGH)
-$NoEncBucket = "aivar-test-noenc-$Timestamp"
-Write-Host "Creating unencrypted bucket: $NoEncBucket"
+# 2. S3 bucket with public read policy (CRITICAL)
+# Note: account-level S3 default encryption prevents unencrypted-bucket demos on newer accounts.
+$PolicyBucket = "aivar-test-policy-$Timestamp"
+Write-Host "Creating public-policy bucket: $PolicyBucket"
 try {
-    aws s3api create-bucket --bucket $NoEncBucket --region $Region `
+    aws s3api create-bucket --bucket $PolicyBucket --region $Region `
         --create-bucket-configuration LocationConstraint=$Region 2>&1 | Out-Null
+    aws s3api put-public-access-block --bucket $PolicyBucket `
+        --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false" 2>&1 | Out-Null
+    $policy = @"
+{"Version":"2012-10-17","Statement":[{"Sid":"PublicRead","Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::$PolicyBucket/*"}]}
+"@
+    aws s3api put-bucket-policy --bucket $PolicyBucket --policy $policy 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) {
-        Add-Result "s3_encryption_disabled" $true "Bucket $NoEncBucket (no encryption)"
+        Add-Result "s3_public_policy" $true "Bucket $PolicyBucket with public read policy"
     } else {
-        Add-Result "s3_encryption_disabled" $false "create-bucket failed"
+        Add-Result "s3_public_policy" $false "put-bucket-policy failed"
     }
 } catch {
-    Add-Result "s3_encryption_disabled" $false $_.Exception.Message
+    Add-Result "s3_public_policy" $false $_.Exception.Message
 }
 
 # 3. IAM user without MFA (HIGH)
