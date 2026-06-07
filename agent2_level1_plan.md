@@ -3,19 +3,54 @@
 
 **Author:** Manikandan M  
 **Deadline:** Monday, 08 June 2026, 11:00 AM  
-**Target:** Level 1 complete + Level 2 partial if time permits  
+**Status:** Level 1 **COMPLETE** · Level 2 & 3 not started  
+**Repository:** https://github.com/max-mani/offensive-security-agent  
+
+---
+
+## 0. Implementation Status (Current — June 2026)
+
+This section reflects what was **actually built**, which may differ slightly from the original plan below.
+
+| Area | Planned | Implemented |
+|------|---------|-------------|
+| Checks | 13 boto3 checks | ✅ 13 checks in `CHECK_REGISTRY` |
+| LLM | OpenAI `gpt-4o-mini` | ✅ Groq `llama-3.3-70b-versatile` (primary); Grok/OpenAI fallback via `utils/llm_client.py` |
+| Entry point | `main.py` only | ✅ `main.py` + `agent/runner.py` |
+| Dashboard | Not in original plan | ✅ FastAPI dashboard at `dashboard/` (port 8080) |
+| Severity guard | severity_cap + confidence downgrade | ✅ + **evidence floor** (`DETERMINISTIC_EVIDENCE` in `intelligence.py`) |
+| Test setup | `setup_test_misconfigs.ps1` | ✅ Idempotent PS1/SH + `verify_test_misconfigs.ps1` + Console guide in README |
+| Acceptance | 7 criteria | ✅ All pass via `scripts/verify_acceptance.py` (+ criterion 6b: root MFA stays critical) |
+| Demo misconfigs | 5 script + 3 natural = ~8 findings | ⚠️ 3 natural detected; 5 intentional require admin Console/CLI setup (see README §7) |
+| AWS account | ap-south-1 | ✅ Account `563999587682`, region `ap-south-1` |
+
+### Files Added Beyond Original Plan
+
+```
+dashboard/                    # Web UI (FastAPI + static frontend)
+agent/runner.py               # Shared scan entry for CLI + dashboard
+utils/llm_client.py           # Groq / Grok / OpenAI provider resolution
+scripts/verify_test_misconfigs.ps1
+scripts/verify_acceptance.py
+docs/screenshots/             # Demo screenshot placeholders (see README §8)
+```
+
+### Key Code Change: Evidence Floor
+
+`agent/intelligence.py` applies `_apply_evidence_floor()` after LLM enrichment so findings with deterministic boto3 proof (e.g. `AccountMFAEnabled=0`, `OpenCIDRs`, `PublicGrants`) cannot be downgraded below `preliminary_severity`.
 
 ---
 
 ## Table of Contents
 
+0. [Implementation Status](#0-implementation-status-current--june-2026)
 1. [Architecture Overview](#1-architecture-overview)
 2. [Project Structure](#2-project-structure)
 3. [AWS Test Environment Setup](#3-aws-test-environment-setup)
 4. [Component Deep Dives](#4-component-deep-dives)
    - 4.1 checklist.yaml — Config Schema
    - 4.2 models/ — Pydantic Data Models
-   - 4.3 checks/ — 12 Boto3 Check Implementations
+   - 4.3 checks/ — 13 Boto3 Check Implementations
    - 4.4 agent/ — Orchestrator + LLM Intelligence Layer
    - 4.5 reporter/ — JSON + Markdown Output
    - 4.6 utils/ — AWS Client + Retry Logic
@@ -85,7 +120,9 @@
 │  4. Assigns confidence_score (0–100)                        │
 │  5. Self-validates: "does evidence support this severity?"  │
 │                                                             │
-│  Model: gpt-4o-mini  Temperature: 0.1 (low hallucination)  │
+│  Model: Groq llama-3.3-70b-versatile (or gpt-4o-mini)     │
+│  Temperature: 0.1 (low hallucination)                       │
+│  + evidence floor for deterministic API proof               │
 └───────────────────────┬─────────────────────────────────────┘
                         │ validated findings
                         ▼
@@ -120,44 +157,33 @@
 ```
 offensive-security-agent/
 │
-├── main.py                    ← Entry point, CLI args, wires everything together
-├── checklist.yaml             ← Scan configuration (checks, thresholds, region)
+├── main.py                    ← CLI entry point
+├── checklist.yaml             ← Scan configuration (13 checks)
 ├── requirements.txt
-├── .env.example               ← OPENAI_API_KEY, AWS credentials (never commit .env)
-├── README.md
+├── .env.example               ← GROQ_API_KEY / AWS credentials (never commit .env)
+├── README.md                  ← Company-facing submission document
+├── agent2_level1_plan.md      ← Technical build plan (this file)
 │
-├── config/
-│   ├── __init__.py
-│   └── loader.py              ← Reads + validates checklist.yaml into ScanConfig
-│
-├── models/
-│   ├── __init__.py
-│   ├── config.py              ← ScanConfig, CheckConfig Pydantic models
-│   ├── finding.py             ← RawFinding, ValidatedFinding Pydantic models
-│   └── report.py              ← ScanReport, CheckError Pydantic models
-│
-├── checks/
-│   ├── __init__.py
-│   ├── base.py                ← BaseCheck abstract class all checks inherit from
-│   ├── iam_checks.py          ← 5 IAM checks
-│   ├── s3_checks.py           ← 3 S3 checks
-│   ├── ec2_checks.py          ← 2 EC2/EBS checks
-│   └── cloudtrail_checks.py   ← 2 CloudTrail checks
-│
+├── config/loader.py           ← Reads + validates checklist.yaml into ScanConfig
+├── models/                    ← ScanConfig, RawFinding, ValidatedFinding, ScanReport
+├── checks/                    ← 13 boto3 checks (IAM×5, S3×3, EC2×3, CT×2)
 ├── agent/
-│   ├── __init__.py
 │   ├── orchestrator.py        ← Parallel execution, result collection
-│   └── intelligence.py        ← LLM enrichment + severity validation
-│
-├── reporter/
-│   ├── __init__.py
-│   ├── json_reporter.py       ← Generates findings_report.json
-│   └── markdown_reporter.py   ← Generates findings_report.md
-│
-└── utils/
-    ├── __init__.py
-    ├── aws_client.py          ← Boto3 session factory, region handling
-    └── retry.py               ← Exponential backoff, rate limit handling
+│   ├── intelligence.py        ← LLM enrichment + severity cap + evidence floor
+│   └── runner.py              ← Shared scan entry (CLI + dashboard)
+├── reporter/                  ← JSON + Markdown report generators
+├── dashboard/                 ← FastAPI web UI (added post-plan)
+├── utils/
+│   ├── aws_client.py          ← Boto3 session factory
+│   ├── llm_client.py          ← Groq / Grok / OpenAI resolver (added post-plan)
+│   └── retry.py               ← safe_aws_call with exponential backoff
+├── scripts/
+│   ├── setup_test_misconfigs.ps1 / .sh
+│   ├── verify_test_misconfigs.ps1
+│   ├── verify_acceptance.py
+│   └── cleanup_test_misconfigs.ps1
+├── docs/screenshots/          ← Demo screenshot placeholders
+└── reports/                   ← Generated scan reports
 ```
 
 ---
@@ -1848,15 +1874,22 @@ Hour 8: Orchestrator + Reporters
 
 Hour 9: End-to-end run
   ✅ python main.py --config checklist.yaml
-  ✅ Verify findings match your 6 intentional misconfigs
+  ⚠️ Verify findings match intentional misconfigs — requires admin setup (see README §7)
   ✅ Verify scan_errors appear for any AccessDenied checks
   ✅ Verify output files in reports/
 
 Hour 10: Polish
   ✅ Add logging to every major step
-  ✅ README.md (setup + usage)
+  ✅ README.md (company-facing submission doc + setup guide)
   ✅ requirements.txt
-  ✅ Verify all 7 acceptance criteria are met
+  ✅ Verify all 7 acceptance criteria are met (+ 6b root MFA critical)
+
+Post-Level-1 additions:
+  ✅ Web dashboard (FastAPI)
+  ✅ Groq LLM provider support (utils/llm_client.py)
+  ✅ Evidence floor in intelligence.py
+  ✅ verify_test_misconfigs.ps1 + idempotent setup scripts
+  ✅ docs/screenshots/ folder for demo evidence
 ```
 
 ---
@@ -1864,35 +1897,52 @@ Hour 10: Polish
 ## 9. Acceptance Criteria Checklist
 
 ```
-☐  Reads a security checklist configuration file in YAML or JSON format
+✅  Reads a security checklist configuration file in YAML or JSON format
      → config/loader.py reads checklist.yaml → ScanConfig
 
-☐  Executes 10 or more distinct checks
+✅  Executes 10 or more distinct checks
      → 13 checks implemented across IAM, S3, EC2, CloudTrail
 
-☐  Each finding includes: resource ARN, severity, raw evidence,
+✅  Each finding includes: resource ARN, severity, raw evidence,
    business impact, step-by-step remediation
      → ValidatedFinding model has all fields
      → LLM generates business_impact, remediation_steps, remediation_command
 
-☐  Handles API errors gracefully — 403, 429, timeouts logged not swallowed
+✅  Handles API errors gracefully — 403, 429, timeouts logged not swallowed
      → utils/retry.py safe_aws_call handles all error types
      → CheckError objects appear in scan_errors in report
 
-☐  Produces both JSON (machine-readable) and Markdown (human-readable)
+✅  Produces both JSON (machine-readable) and Markdown (human-readable)
      → reporter/json_reporter.py → findings_report_{ts}.json
      → reporter/markdown_reporter.py → findings_report_{ts}.md
+     → dashboard/ also serves reports via /api/reports
 
-☐  Zero false positives on Critical severity findings
+✅  Zero false positives on Critical severity findings
      → boto3 checks require DIRECT API evidence before creating finding
      → LLM validates severity with explicit Critical criteria in system prompt
      → severity_cap in checklist.yaml bounds maximum severity per check
      → confidence_score < 70 triggers automatic severity downgrade
+     → DETERMINISTIC_EVIDENCE evidence floor prevents wrongful downgrades
 
-☐  All checks execute against real infrastructure — no mocked API responses
+✅  All checks execute against real infrastructure — no mocked API responses
      → boto3 session uses real AWS credentials from .env
-     → Test environment: real AWS free tier account with real misconfigs
+     → Live account: 563999587682, ap-south-1
+
+✅  (Added) Root MFA stays critical when AccountMFAEnabled=0
+     → verify_acceptance.py criterion 6b
+     → scripts/verify_acceptance.py — ALL ACCEPTANCE CRITERIA PASSED
 ```
+
+### Creating Demo Misconfigs (5 intentional resources)
+
+See **README.md Section 7** for full Console and CLI instructions.
+
+| Method | Requires | Script / Steps |
+|--------|----------|----------------|
+| AWS Console | Root/admin browser login | README §7 Option A (5 resources) |
+| CLI script | Admin AWS CLI credentials | `scripts/setup_test_misconfigs.ps1` |
+| Verify (scanner) | aivar-scanner in `.env` | `scripts/verify_test_misconfigs.ps1` → 5/5 PASS |
+| Cleanup | Admin credentials | `scripts/cleanup_test_misconfigs.ps1` |
 
 ---
 
@@ -1942,30 +1992,45 @@ Google Drive folder structure:
     └── README.md
 ```
 
-### requirements.txt
+### requirements.txt (current)
 
 ```
-boto3==1.34.0
-botocore==1.34.0
-openai==1.30.0
-pydantic==2.7.0
-pyyaml==6.0.1
-python-dotenv==1.0.0
+boto3>=1.34.0
+botocore>=1.34.0
+openai>=1.30.0
+pydantic>=2.10.0
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
 ```
 
-### .env.example
+### .env.example (current)
 
 ```
-# AWS Credentials (read-only IAM user)
+# AWS Credentials (read-only IAM user: aivar-scanner)
 AWS_ACCESS_KEY_ID=AKIA...
 AWS_SECRET_ACCESS_KEY=...
 AWS_DEFAULT_REGION=ap-south-1
 
-# OpenAI
-OPENAI_API_KEY=sk-...
+# LLM - Groq (preferred) / Grok / OpenAI
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
 ---
 
+## 11. Level 2 & 3 — Not Started
+
+| Level | Status | Notes |
+|-------|--------|-------|
+| Level 2 | Not started | Multi-domain: APIs, CVEs, secrets, cross-domain ranking — see README §9 |
+| Level 3 | Not started | Scheduled scans, SLA, deduplication, escalation — see README §10 |
+
+Submission document for reviewers: **README.md** (company-facing, includes screenshot placeholders).
+
+---
+
 *Plan prepared for Aivar Innovations AI/ML Hiring Challenge — June 2026*  
-*Manikandan M — 19manikandan2005@gmail.com*
+*Manikandan M — 19manikandan2005@gmail.com*  
+*Last updated: June 2026 — Level 1 implementation complete*
