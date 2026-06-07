@@ -9,7 +9,7 @@ let activeScanLevel = 1;
 const LEVEL_SUBTITLES = {
   1: "Level 1 - AWS Infrastructure Scanner",
   2: "Level 2 - Multi-Domain Scanner (AWS + API + CVE + Secrets)",
-  3: "Level 3 - Autonomous Continuous Scanning (Coming Soon)",
+  3: "Level 3 - Autonomous Continuous Scanning",
 };
 
 const EMPTY_STATE = {
@@ -22,8 +22,8 @@ const EMPTY_STATE = {
     desc: 'Click <strong>Run Level 2 Scan</strong> to run the multi-domain audit.',
   },
   3: {
-    title: "Level 3 not available",
-    desc: "Scheduled scanning and SLA tracking will appear here when Level 3 is implemented.",
+    title: "No Level 3 data yet",
+    desc: 'Click <strong>Run L3 Once</strong> or <strong>Start Daemon</strong> to begin autonomous scanning.',
   },
 };
 
@@ -74,6 +74,27 @@ const els = {
   kpiDedupCard: document.getElementById("kpiDedupCard"),
   kpiDomains: document.getElementById("kpiDomains"),
   kpiDedup: document.getElementById("kpiDedup"),
+  runL3OnceBtn: document.getElementById("runL3OnceBtn"),
+  startDaemonBtn: document.getElementById("startDaemonBtn"),
+  stopDaemonBtn: document.getElementById("stopDaemonBtn"),
+  refreshL3Btn: document.getElementById("refreshL3Btn"),
+  l3PostureScore: document.getElementById("l3PostureScore"),
+  l3TrendDirection: document.getElementById("l3TrendDirection"),
+  l3OpenCritical: document.getElementById("l3OpenCritical"),
+  l3SlaBreaches: document.getElementById("l3SlaBreaches"),
+  l3DaemonStatus: document.getElementById("l3DaemonStatus"),
+  l3MetaHealth: document.getElementById("l3MetaHealth"),
+  l3MetaPosture: document.getElementById("l3MetaPosture"),
+  l3MetaLifecycle: document.getElementById("l3MetaLifecycle"),
+  l3MetaStarted: document.getElementById("l3MetaStarted"),
+  l3MetaNextRun: document.getElementById("l3MetaNextRun"),
+  l3MetaSlack: document.getElementById("l3MetaSlack"),
+  l3TrendHistory: document.getElementById("l3TrendHistory"),
+  l3FindingsBody: document.getElementById("l3FindingsBody"),
+  l3HealthBody: document.getElementById("l3HealthBody"),
+  l3AuditBody: document.getElementById("l3AuditBody"),
+  l3LogPanel: document.getElementById("l3LogPanel"),
+  l3LogOutput: document.getElementById("l3LogOutput"),
 };
 
 const DOMAIN_LABELS = {
@@ -90,7 +111,13 @@ const demoBtns = [
   els.cleanupBtn,
   els.runScanL1Btn,
   els.runScanL2Btn,
+  els.runL3OnceBtn,
+  els.startDaemonBtn,
+  els.stopDaemonBtn,
+  els.refreshL3Btn,
 ];
+
+let l3PollInterval = null;
 
 async function fetchJSON(url, options = {}) {
   const res = await fetch(API + url, options);
@@ -156,10 +183,9 @@ function switchLevel(level) {
 
   if (level === 3) {
     els.dashboardContent.classList.add("hidden");
-    els.emptyState.classList.remove("hidden");
-    els.emptyStateTitle.textContent = EMPTY_STATE[3].title;
-    els.emptyStateDesc.innerHTML = EMPTY_STATE[3].desc;
+    els.emptyState.classList.add("hidden");
     els.pipelinePanel.classList.add("hidden");
+    loadL3Dashboard();
     return;
   }
 
@@ -399,8 +425,228 @@ async function loadHistory(level = currentLevel) {
   }
 }
 
+async function loadL3Dashboard() {
+  try {
+    const [trend, findings, health, audit, daemonSt] = await Promise.all([
+      fetchJSON("/api/l3/trend"),
+      fetchJSON("/api/l3/findings"),
+      fetchJSON("/api/l3/scan-health"),
+      fetchJSON("/api/l3/audit?limit=50"),
+      fetchJSON("/api/l3/daemon/status"),
+    ]);
+
+    els.l3PostureScore.textContent = trend.posture_score != null ? `${trend.posture_score}/100` : "—";
+    els.l3TrendDirection.textContent = (trend.trend_direction || "—").toUpperCase();
+    els.l3OpenCritical.textContent = trend.open_findings_by_severity?.critical ?? 0;
+    els.l3SlaBreaches.textContent = trend.sla_breached_count ?? 0;
+
+    const daemonRunning = daemonSt.daemon_state === "running";
+    els.l3DaemonStatus.textContent = daemonRunning ? "Running" : "Stopped";
+    if (els.stopDaemonBtn) els.stopDaemonBtn.disabled = !daemonRunning;
+    if (els.startDaemonBtn) els.startDaemonBtn.disabled = daemonRunning;
+
+    const latest = trend.latest_scan_run;
+    if (latest) {
+      els.l3MetaHealth.textContent = latest.health || "—";
+      els.l3MetaPosture.textContent = latest.posture_score != null ? `${latest.posture_score}/100` : "—";
+      els.l3MetaLifecycle.textContent = `${latest.new_findings} new / ${latest.updated_findings} updated`;
+      els.l3MetaStarted.textContent = formatTime(latest.started_at);
+    } else {
+      els.l3MetaHealth.textContent = "—";
+      els.l3MetaPosture.textContent = "—";
+      els.l3MetaLifecycle.textContent = "—";
+      els.l3MetaStarted.textContent = "—";
+    }
+
+    els.l3MetaNextRun.textContent = daemonSt.next_run_time
+      ? formatTime(daemonSt.next_run_time)
+      : "—";
+    els.l3MetaSlack.textContent = trend.slack_configured ? "Configured" : "Not configured";
+
+    if (trend.scan_history?.length) {
+      els.l3TrendHistory.innerHTML = trend.scan_history
+        .slice(-10)
+        .map(
+          (r) =>
+            `<div class="trend-history-row"><span>${formatTime(r.timestamp)}</span>` +
+            `<span>${r.posture_score ?? "N/A"}/100 · ${r.health || "?"} · +${r.findings?.new ?? 0} new</span></div>`
+        )
+        .join("");
+    } else {
+      els.l3TrendHistory.textContent = "No scan history yet.";
+    }
+
+    renderL3Findings(findings);
+    renderL3Health(health);
+    renderL3Audit(audit);
+
+    if (daemonSt.log_tail?.length) {
+      els.l3LogPanel.classList.remove("hidden");
+      els.l3LogOutput.textContent = daemonSt.log_tail.join("\n");
+    }
+  } catch (e) {
+    console.error("L3 load error", e);
+  }
+}
+
+function statusBadgeClass(status) {
+  const s = (status || "").replace("-", "");
+  return `status-badge status-${status || "opened"}`;
+}
+
+function renderL3Findings(findings) {
+  if (!els.l3FindingsBody) return;
+  if (!findings?.length) {
+    els.l3FindingsBody.innerHTML =
+      `<tr><td colspan="7" style="text-align:center;color:var(--muted)">No findings in database yet.</td></tr>`;
+    return;
+  }
+  els.l3FindingsBody.innerHTML = findings
+    .map(
+      (f) => `<tr>
+        <td><span class="${statusBadgeClass(f.status)}">${escapeHtml(f.status)}</span></td>
+        <td><span class="sev-${f.severity}">${escapeHtml(f.severity)}</span></td>
+        <td><code>${escapeHtml(f.check_id)}</code></td>
+        <td>${escapeHtml(f.resource_id)}</td>
+        <td>${formatTime(f.first_seen)}</td>
+        <td>${formatTime(f.last_seen)}</td>
+        <td>${f.sla_breached ? "BREACHED" : formatTime(f.sla_deadline)}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+function renderL3Health(health) {
+  if (!els.l3HealthBody) return;
+  if (!health?.length) {
+    els.l3HealthBody.innerHTML =
+      `<tr><td colspan="4" style="text-align:center;color:var(--muted)">No scan health data yet.</td></tr>`;
+    return;
+  }
+  els.l3HealthBody.innerHTML = health
+    .map(
+      (h) => `<tr>
+        <td class="${h.status === "success" ? "health-success" : "health-error"}">${escapeHtml(h.status)}</td>
+        <td><code>${escapeHtml(h.check_id)}</code></td>
+        <td>${escapeHtml(h.domain)}</td>
+        <td>${escapeHtml(h.error_message || "—")}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+function renderL3Audit(audit) {
+  if (!els.l3AuditBody) return;
+  if (!audit?.length) {
+    els.l3AuditBody.innerHTML =
+      `<tr><td colspan="4" style="text-align:center;color:var(--muted)">No audit entries yet.</td></tr>`;
+    return;
+  }
+  els.l3AuditBody.innerHTML = audit
+    .map(
+      (a) => `<tr>
+        <td>${formatTime(a.timestamp)}</td>
+        <td>${escapeHtml(a.actor)}</td>
+        <td><code>${escapeHtml(a.action)}</code></td>
+        <td>${escapeHtml(a.entity_type || "")}:${escapeHtml(a.entity_id || "")}</td>
+      </tr>`
+    )
+    .join("");
+}
+
+function startL3Polling() {
+  stopL3Polling();
+  l3PollInterval = setInterval(async () => {
+    if (currentLevel !== 3) return;
+    await loadL3Dashboard();
+    const st = await fetchJSON("/api/l3/daemon/status");
+    if (st.l3_scan_state === "running") {
+      setScanBadge("running", "L3 Scanning");
+    } else if (st.daemon_state === "running") {
+      setScanBadge("running", "Daemon Active");
+    }
+  }, 3000);
+}
+
+function stopL3Polling() {
+  if (l3PollInterval) {
+    clearInterval(l3PollInterval);
+    l3PollInterval = null;
+  }
+}
+
+async function runL3Once() {
+  try {
+    activeMode = "l3";
+    switchLevel(3);
+    await fetchJSON("/api/l3/run", { method: "POST" });
+    setScanBadge("running", "L3 Scanning");
+    setButtonsDisabled(true);
+    els.l3LogPanel.classList.remove("hidden");
+    els.l3LogOutput.textContent = "Starting Level 3 scan...\n";
+    showToast("Level 3 scan started");
+    startL3Polling();
+    pollL3Status();
+  } catch (e) {
+    showToast(e.message || "Failed to start L3 scan", true);
+  }
+}
+
+async function startDaemon() {
+  try {
+    await fetchJSON("/api/l3/daemon/start", { method: "POST" });
+    showToast("Daemon started");
+    setScanBadge("running", "Daemon Active");
+    startL3Polling();
+    await loadL3Dashboard();
+  } catch (e) {
+    showToast(e.message || "Failed to start daemon", true);
+  }
+}
+
+async function stopDaemon() {
+  try {
+    await fetchJSON("/api/l3/daemon/stop", { method: "POST" });
+    showToast("Daemon stopped");
+    setScanBadge("idle", "Idle");
+    stopL3Polling();
+    await loadL3Dashboard();
+  } catch (e) {
+    showToast(e.message || "Failed to stop daemon", true);
+  }
+}
+
+async function pollL3Status() {
+  const interval = setInterval(async () => {
+    try {
+      const st = await fetchJSON("/api/l3/daemon/status");
+      if (st.log_tail?.length) {
+        els.l3LogOutput.textContent = st.log_tail.join("\n");
+      }
+      if (st.l3_scan_state === "running") return;
+
+      clearInterval(interval);
+      setButtonsDisabled(false);
+      if (st.l3_scan_state === "completed") {
+        setScanBadge("completed", "Done");
+        showToast("Level 3 scan complete");
+      } else if (st.l3_scan_state === "failed") {
+        setScanBadge("failed", "Failed");
+        showToast(st.error || "L3 scan failed", true);
+      }
+      await loadL3Dashboard();
+      activeMode = null;
+    } catch (e) {
+      console.error("L3 poll error", e);
+    }
+  }, 1500);
+}
+
 async function loadLatestReportForLevel(level) {
-  if (level === 3) return;
+  if (level === 3) {
+    await loadL3Dashboard();
+    return;
+  }
 
   try {
     const report = await fetchJSON(`/api/reports/latest?level=${level}`);
@@ -563,11 +809,14 @@ async function startScan(level) {
 els.levelTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     const level = parseInt(tab.dataset.level, 10);
-    if (level === 3) {
-      switchLevel(3);
-      return;
-    }
     switchLevel(level);
+    if (level === 3) {
+      const st = fetchJSON("/api/l3/daemon/status").then((s) => {
+        if (s.daemon_state === "running") startL3Polling();
+      });
+    } else {
+      stopL3Polling();
+    }
   });
 });
 
@@ -581,10 +830,16 @@ els.cleanupBtn.addEventListener("click", () => {
 
 els.runScanL1Btn.addEventListener("click", () => startScan(1));
 els.runScanL2Btn.addEventListener("click", () => startScan(2));
+if (els.runL3OnceBtn) els.runL3OnceBtn.addEventListener("click", () => runL3Once());
+if (els.startDaemonBtn) els.startDaemonBtn.addEventListener("click", () => startDaemon());
+if (els.stopDaemonBtn) els.stopDaemonBtn.addEventListener("click", () => stopDaemon());
+if (els.refreshL3Btn) els.refreshL3Btn.addEventListener("click", () => loadL3Dashboard());
 
 els.refreshBtn.addEventListener("click", async () => {
   await updateCredentials();
-  if (currentLevel !== 3) {
+  if (currentLevel === 3) {
+    await loadL3Dashboard();
+  } else {
     await loadLatestReportForLevel(currentLevel);
   }
 });
@@ -603,6 +858,13 @@ async function init() {
     if (health.scan_state === "running" || health.job_state === "running") {
       activeMode = health.scan_state === "running" ? "scan" : "job";
       startPolling();
+    } else if (health.daemon_state === "running") {
+      startL3Polling();
+      setScanBadge("running", "Daemon Active");
+    } else if (health.l3_scan_state === "running") {
+      activeMode = "l3";
+      startL3Polling();
+      pollL3Status();
     } else {
       setScanBadge("idle", "Idle");
     }

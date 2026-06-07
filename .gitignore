@@ -10,5 +10,7 @@ dist/
 build/
 reports/*.json
 reports/*.md
+storage/*.db
+agent.log
 .pytest_cache/
 .mypy_cache/

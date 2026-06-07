@@ -39,4 +39,5 @@ class ValidatedFinding(BaseModel):
     confidence_score: int = Field(ge=0, le=100)
     domain: str = "aws_infrastructure"
     impact_score: float = 0.0
+    fingerprint: str | None = None
     scan_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

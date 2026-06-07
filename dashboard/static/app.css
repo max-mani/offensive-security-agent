@@ -154,17 +154,42 @@ body {
 
 .level-hero-l1 { border-left: 4px solid #f59e0b; }
 .level-hero-l2 { border-left: 4px solid var(--accent); }
-.level-hero-l3 { border-left: 4px solid #8957e5; opacity: 0.85; }
+.level-hero-l3 { border-left: 4px solid #8957e5; }
 
-.coming-soon-label {
-  display: inline-block;
-  color: #8957e5;
-  font-weight: 600;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.5rem;
+.l3-dashboard { margin-top: 1.5rem; }
+.l3-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.kpi-posture { border-top: 3px solid #8957e5; }
+.kpi-trend { border-top: 3px solid #3fb950; }
+.kpi-sla { border-top: 3px solid #f85149; }
+.kpi-daemon { border-top: 3px solid #58a6ff; }
+.trend-history {
+  font-size: 0.85rem;
+  color: var(--muted);
+  max-height: 160px;
+  overflow-y: auto;
 }
+.trend-history-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.status-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.status-opened { background: #23863633; color: #3fb950; }
+.status-updated { background: #1f6feb33; color: #58a6ff; }
+.status-resolved { background: #484f5833; color: #8b949e; }
+.status-re-opened { background: #9e6a0333; color: #f0883e; }
+.health-success { color: #3fb950; }
+.health-error { color: #f85149; }
+.table-wrap { overflow-x: auto; }
+.l3-table { font-size: 0.85rem; }
 
 .level-feature-list {
   margin: 1rem 0;

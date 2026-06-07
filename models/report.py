@@ -39,3 +39,5 @@ class ScanReport(BaseModel):
     findings_by_domain: Dict[str, int] = Field(default_factory=dict)
     deduplication_removed: int = 0
     domains_scanned: List[str] = Field(default_factory=list)
+    posture_score: float | None = None
+    lifecycle_summary: Dict[str, int] = Field(default_factory=dict)

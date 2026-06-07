@@ -36,6 +36,25 @@ def check_level2_dependencies() -> None:
         )
 
 
+def check_level3_dependencies() -> None:
+    """Ensure Level 3 Python packages are installed."""
+    check_level2_dependencies()
+    missing = []
+    try:
+        import sqlalchemy  # noqa: F401
+    except ImportError:
+        missing.append("sqlalchemy")
+    try:
+        import apscheduler  # noqa: F401
+    except ImportError:
+        missing.append("apscheduler")
+    if missing:
+        raise RuntimeError(
+            "Level 3 requires packages not installed: "
+            f"{', '.join(missing)}. Run: pip install -r requirements.txt"
+        )
+
+
 def run_scan(
     config_path: str = "checklist.yaml",
     level: int = 1,
@@ -59,6 +78,11 @@ def run_scan(
 
     config = load_config(path)
 
+    if level >= 3:
+        check_level3_dependencies()
+        result = run_scan_l3(str(path), progress_callback=progress_callback)
+        return result["report"]
+
     if level >= 2:
         check_level2_dependencies()
         from agent.orchestrator_l2 import OrchestratorL2
@@ -69,3 +93,34 @@ def run_scan(
 
     orchestrator = AgentOrchestrator(config, llm)
     return orchestrator.run(progress_callback=progress_callback)
+
+
+def run_scan_l3(
+    config_path: str = "checklist_l3.yaml",
+    progress_callback: Optional[Callable[[str, str, str], None]] = None,
+) -> dict:
+    """Run a Level 3 scan with persistence and lifecycle."""
+    load_dotenv(PROJECT_ROOT / ".env")
+    os.chdir(PROJECT_ROOT)
+
+    check_level3_dependencies()
+    llm = resolve_llm_config()
+
+    path = Path(config_path)
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+
+    config = load_config(path)
+
+    from storage.database import init_db
+    from agent.orchestrator_l3 import OrchestratorL3
+
+    init_db()
+    logger.info("Running Level 3 autonomous scan")
+    orchestrator = OrchestratorL3(config, llm)
+    result = orchestrator.run()
+
+    if progress_callback and "report" in result:
+        progress_callback("l3_complete", "completed", f"posture={result.get('posture_score')}")
+
+    return result

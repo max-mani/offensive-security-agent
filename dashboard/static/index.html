@@ -27,10 +27,9 @@
       <span class="level-tab-num">2</span>
       <span class="level-tab-label">Multi-Domain</span>
     </button>
-    <button type="button" class="level-tab level-tab-disabled" data-level="3" title="Coming soon">
+    <button type="button" class="level-tab" data-level="3">
       <span class="level-tab-num">3</span>
       <span class="level-tab-label">Continuous</span>
-      <span class="level-tab-badge">Soon</span>
     </button>
   </nav>
 
@@ -80,14 +79,122 @@
     <div id="level3View" class="level-view hidden">
       <section class="level-hero level-hero-l3">
         <h2>Level 3: Autonomous Continuous Scanning</h2>
-        <p class="coming-soon-label">Not yet implemented</p>
-        <p>Level 3 will add scheduled scans, finding lifecycle tracking, SLA alerts, and Critical escalation - no manual trigger required.</p>
+        <p>Scheduled multi-domain scans with persistent findings, lifecycle tracking, SLA alerts, Slack escalation, and posture trends.</p>
         <ul class="level-feature-list">
-          <li>Configurable scan schedule</li>
+          <li>Configurable scan schedule (default: every 6 hours)</li>
           <li>Finding lifecycle: opened, updated, resolved, re-opened</li>
           <li>Cross-run deduplication and posture score trends</li>
-          <li>Critical escalation to notification channels</li>
+          <li>Critical escalation via Slack webhook</li>
         </ul>
+        <div class="demo-actions">
+          <button id="runL3OnceBtn" class="btn btn-primary">Run L3 Once</button>
+          <button id="startDaemonBtn" class="btn btn-accent">Start Daemon</button>
+          <button id="stopDaemonBtn" class="btn btn-danger" disabled>Stop Daemon</button>
+          <button id="refreshL3Btn" class="btn btn-secondary">Refresh L3 Data</button>
+        </div>
+        <p class="demo-hint">Requires <code>SLACK_WEBHOOK_URL</code> in <code>.env</code> for escalation. DB: <code>storage/findings.db</code></p>
+      </section>
+
+      <section id="l3Dashboard" class="l3-dashboard">
+        <div class="kpi-grid l3-kpi-grid">
+          <div class="kpi-card kpi-posture">
+            <span class="kpi-label">Posture Score</span>
+            <span id="l3PostureScore" class="kpi-value">—</span>
+          </div>
+          <div class="kpi-card kpi-trend">
+            <span class="kpi-label">Trend</span>
+            <span id="l3TrendDirection" class="kpi-value">—</span>
+          </div>
+          <div class="kpi-card kpi-critical">
+            <span class="kpi-label">Open Critical</span>
+            <span id="l3OpenCritical" class="kpi-value">0</span>
+          </div>
+          <div class="kpi-card kpi-sla">
+            <span class="kpi-label">SLA Breaches</span>
+            <span id="l3SlaBreaches" class="kpi-value">0</span>
+          </div>
+          <div class="kpi-card kpi-daemon">
+            <span class="kpi-label">Daemon</span>
+            <span id="l3DaemonStatus" class="kpi-value">Stopped</span>
+          </div>
+        </div>
+
+        <div class="meta-grid">
+          <div class="meta-card">
+            <h3>Latest Scan Run</h3>
+            <dl>
+              <dt>Health</dt><dd id="l3MetaHealth">—</dd>
+              <dt>Posture</dt><dd id="l3MetaPosture">—</dd>
+              <dt>New / Updated</dt><dd id="l3MetaLifecycle">—</dd>
+              <dt>Started</dt><dd id="l3MetaStarted">—</dd>
+              <dt>Next Run</dt><dd id="l3MetaNextRun">—</dd>
+              <dt>Slack</dt><dd id="l3MetaSlack">—</dd>
+            </dl>
+          </div>
+          <div class="meta-card">
+            <h3>Posture History</h3>
+            <div id="l3TrendHistory" class="trend-history">No scan history yet.</div>
+          </div>
+        </div>
+
+        <section class="findings-section">
+          <h2>Lifecycle Findings (SQLite)</h2>
+          <div class="table-wrap">
+            <table class="findings-table l3-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Severity</th>
+                  <th>Check</th>
+                  <th>Resource</th>
+                  <th>First Seen</th>
+                  <th>Last Seen</th>
+                  <th>SLA</th>
+                </tr>
+              </thead>
+              <tbody id="l3FindingsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="findings-section">
+          <h2>Scan Health (Latest Run)</h2>
+          <div class="table-wrap">
+            <table class="findings-table l3-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Check</th>
+                  <th>Domain</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody id="l3HealthBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="findings-section">
+          <h2>Audit Trail</h2>
+          <div class="table-wrap">
+            <table class="findings-table l3-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Entity</th>
+                </tr>
+              </thead>
+              <tbody id="l3AuditBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="l3LogPanel" class="log-panel hidden">
+          <h3>L3 Activity Log</h3>
+          <pre id="l3LogOutput"></pre>
+        </section>
       </section>
     </div>
 

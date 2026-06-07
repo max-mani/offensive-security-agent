@@ -6,7 +6,7 @@
 |---|---|
 | **Candidate** | Manikandan M |
 | **Agent** | Agent 2 — Offensive Security Agent |
-| **Status** | **Level 1 complete** (verified 8/8 findings) · **Level 2 complete** (`verify_acceptance_l2.py` all pass) · Level 3 not started |
+| **Status** | **Level 1 complete** (verified 8/8 findings) · **Level 2 complete** (`verify_acceptance_l2.py` all pass) · **Level 3 complete** (`verify_acceptance_l3.py` all pass) |
 | **Verified** | 7 June 2026 — account `563999587682`, region `ap-south-1` |
 | **Repository** | [offensive-security-agent](https://github.com/max-mani/offensive-security-agent) |
 | **AWS Region** | `ap-south-1` (Mumbai) |
@@ -25,9 +25,10 @@
 8. [Screenshots & Demo Evidence](#8-screenshots--demo-evidence)
 9. [Level 2 — What Was Built](#9-level-2--what-was-built)
 10. [Level 2 — Acceptance Criteria](#10-level-2--acceptance-criteria)
-11. [Level 3 — Autonomous Continuous Scanning *(Not Started)*](#11-level-3--autonomous-continuous-scanning-not-started)
-12. [Project Structure](#12-project-structure)
-13. [Troubleshooting](#13-troubleshooting)
+11. [Level 3 — What Was Built](#11-level-3--what-was-built)
+12. [Level 3 — Acceptance Criteria](#12-level-3--acceptance-criteria)
+13. [Project Structure](#13-project-structure)
+14. [Troubleshooting](#14-troubleshooting)
 
 ---
 
@@ -74,7 +75,7 @@ With infrastructure shipping daily, manual security reviews happen at best quart
 |-------|---------------|---------------|--------|
 | **Level 1** | Read a YAML/JSON security checklist and execute each check against real AWS infrastructure | Zero false positives on Critical severity | **Complete** |
 | **Level 2** | Extend to AWS infrastructure + live API endpoints + code dependency CVEs; merge and rank by business impact | Each domain has different signal norms | **Complete** |
-| **Level 3** | Run on a schedule, deduplicate findings, escalate Critical, track remediation SLAs | Silent scan failures are worse than missed scans | **Not started** |
+| **Level 3** | Run on a schedule, deduplicate findings, escalate Critical, track remediation SLAs | Silent scan failures are worse than missed scans | **Complete** |
 
 ---
 
@@ -307,6 +308,44 @@ Same dashboard as Level 1 — open **http://127.0.0.1:8080**, switch to the **Le
 | **History dropdown** | Select prior Level 2 runs (filtered by scan level) |
 
 Level 2 uses demo fixtures in-repo (`test_vulnerable_requirements.txt`, `test_secrets.env`) — no admin AWS setup required for CVE/secrets findings. API checks target `https://httpbin.org` (requires outbound HTTPS).
+
+### Run Level 3 Scan (CLI)
+
+Requires `sqlalchemy` and `apscheduler` (included in `requirements.txt`). Add to `.env`:
+
+```env
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+DB_PATH=storage/findings.db
+```
+
+```powershell
+# One-shot L3 scan — persists to SQLite, escalates new Criticals to Slack
+python main.py --level 3 --config checklist_l3.yaml --verbose
+
+# Second run — same findings show as UPDATED, not NEW (cross-run lifecycle dedup)
+python main.py --level 3 --config checklist_l3.yaml --verbose
+
+# Posture trend report only
+python main.py --level 3 --config checklist_l3.yaml --trend
+
+# Daemon — scheduled scans (default every 6 hours) + immediate first scan
+python main.py --level 3 --config checklist_l3.yaml --daemon
+```
+
+Persistence: `storage/findings.db` · Trend reports: `reports/trend_report_*.json` and `.md`
+
+### Run Level 3 Scan (Dashboard)
+
+Same dashboard — open **http://127.0.0.1:8080**, switch to the **Continuous** (Level 3) tab.
+
+| Button | What it does |
+|--------|----------------|
+| **Run L3 Once** | One-shot L3 scan with SQLite persistence, lifecycle, Slack escalation |
+| **Start Daemon** | APScheduler background scans on `checklist_l3.yaml` schedule |
+| **Stop Daemon** | Gracefully stop scheduled scanning |
+| **Refresh L3 Data** | Reload posture score, lifecycle table, scan health, audit trail from DB |
+
+Level 3 wraps the full Level 2 pipeline (4 domains) and adds memory, SLA tracking, and autonomous scheduling. Use the **same venv** for dashboard and CLI (`pip install -r requirements.txt`).
 
 ---
 
@@ -592,7 +631,7 @@ python scripts\verify_acceptance.py
 
 ## 8. Screenshots & Demo Evidence
 
-Level 1 **code and verification are complete**. Level 2 **code and `verify_acceptance_l2.py` are complete**. Remaining submission items are evidence capture (screenshots, demo video, writeup PDF).
+Level 1 **code and verification are complete**. Level 2 **code and `verify_acceptance_l2.py` are complete**. Level 3 **code and `verify_acceptance_l3.py` are complete**. Remaining submission items are evidence capture (screenshots, demo video, writeup PDF).
 
 Place screenshots in `docs/screenshots/` and reference them below. Replace `PLACEHOLDER` paths after capturing.
 
@@ -671,6 +710,23 @@ Link your Loom / YouTube demo here:
 | L2 demo fixtures (`test_secrets.env`, `test_vulnerable_requirements.txt`) | Done |
 | L2 screenshots (impact-ranked table, CVE expand panel, domain breakdown) | **Pending** |
 | L2 demo video (8 min) | **Pending** — script in `agent2_level2_plan.md` Section 14 |
+
+### Level 3 Submission Checklist
+
+| Item | Status |
+|------|--------|
+| SQLite persistence (`findings`, `scan_runs`, `audit_log`, `scan_health`) | Done |
+| Finding lifecycle state machine (opened / updated / resolved / re-opened) | Done |
+| Cross-run deduplication via fingerprint | Done |
+| APScheduler daemon + `--daemon` CLI | Done |
+| Slack Critical escalation + SLA breach alerts | Done |
+| Posture trend reporter + `--trend` CLI | Done |
+| Per-check scan health (success + error, never silently skipped) | Done |
+| Level 3 dashboard tab (daemon, lifecycle, health, audit, posture KPIs) | Done |
+| `verify_acceptance_l3.py` — all criteria pass | Done |
+| Live L3 verification (0 new / N updated on second run, Slack once per Critical) | Done |
+| L3 screenshots (lifecycle table, posture score, daemon status, Slack alert) | **Pending** |
+| L3 demo video (8-10 min) | **Pending** — script in `agent2_level3_plan.md` Section 18 |
 
 ---
 
@@ -807,53 +863,184 @@ python scripts\verify_acceptance.py
 
 ---
 
-## 11. Level 3 — Autonomous Continuous Scanning *(Not Started)*
+## 11. Level 3 — What Was Built
 
-Per Aivar problem statement — **planned, not yet implemented.**
+Level 3 extends Level 2 into an **autonomous, persistent security service**. The agent runs on a schedule (or on demand), **remembers findings across scans** in SQLite, tracks lifecycle and SLAs, escalates Critical findings to Slack, and reports its own scan health — a failed check is never treated as a clean resource.
 
-### Goal
+### Core Capabilities
 
-Operate as a persistent service:
+| Capability | Implementation |
+|------------|----------------|
+| L3 config | [`checklist_l3.yaml`](checklist_l3.yaml) — all L2 checks + `level3` block (schedule, Slack, SLA, auto-remediation) |
+| L2 scan reuse | [`agent/orchestrator_l3.py`](agent/orchestrator_l3.py) wraps [`OrchestratorL2`](agent/orchestrator_l2.py) — same 4-domain pipeline |
+| SQLite persistence | [`storage/database.py`](storage/database.py) — `findings`, `scan_runs`, `audit_log`, `scan_health` |
+| Finding lifecycle | [`agent/lifecycle_manager.py`](agent/lifecycle_manager.py) — opened → updated → resolved → re-opened |
+| Cross-run dedup | [`agent/deduplicator.py`](agent/deduplicator.py) `compute_fingerprint()` — same finding updates row, not creates new |
+| Scheduled scanning | [`scheduler/scan_scheduler.py`](scheduler/scan_scheduler.py) — APScheduler interval or cron, `run_on_start` |
+| Slack escalation | [`agent/escalation.py`](agent/escalation.py) — Critical on first detection; `escalated=True` prevents duplicate alerts |
+| SLA tracking | [`agent/sla_tracker.py`](agent/sla_tracker.py) — pre-scan breach check; Critical default 24h (configurable) |
+| Audit trail | [`storage/audit_store.py`](storage/audit_store.py) — append-only log with actor + timestamp |
+| Posture trends | [`reporter/trend_reporter.py`](reporter/trend_reporter.py) — score 0–100, improving / degrading / stable |
+| Scan health | Every attempted check → `scan_health` row (`success` or `error`) |
+| Auto-remediation | [`agent/auto_remediation.py`](agent/auto_remediation.py) — **disabled by default**, dry-run, LOW + allowlist only |
+| Dashboard | Level 3 **Continuous** tab — Run L3 Once, Start/Stop Daemon, lifecycle table, audit tail, posture KPIs |
+| Verification | [`scripts/verify_acceptance_l3.py`](scripts/verify_acceptance_l3.py) — unit + integration checks |
 
-- Scheduled scans (no manual trigger)
-- Finding lifecycle: opened → updated → resolved → re-opened → SLA status
-- Deduplication across runs
-- Critical findings escalate to notification channel immediately
-- SLA alerts when Critical unresolved beyond 24 hours
-- Audit trail and trend reporting (posture score over time)
-- Scan health reporting — never silently skip failed checks
+### Lifecycle & Persistence
 
-### Level 3 Acceptance Criteria (Reference)
+| State | When |
+|-------|------|
+| **opened** | Finding fingerprint seen for the first time |
+| **updated** | Same fingerprint seen again in a later scan |
+| **resolved** | Not seen for `auto_resolve_after_misses` consecutive scans (default 3) |
+| **re-opened** | Previously resolved finding appears again |
 
-| Criterion | Status |
-|-----------|--------|
-| Configurable schedule, no manual trigger | Not started |
-| Finding lifecycle + deduplication | Not started |
-| Critical escalation to notification channel | Not started |
-| SLA tracking (24h Critical) | Not started |
-| Audit trail | Not started |
-| Trend reporting / posture score | Not started |
-| Scan health reporting | Partially done in Level 1 (`scan_health` field) |
-| Optional safe auto-remediation with approval gate | Not started |
+Each finding stores `sla_deadline`, `sla_breached`, `first_seen`, `last_seen`, and enrichment fields. DB file: `storage/findings.db` (inspect with DB Browser for SQLite).
 
-> **I will update this section after Level 3 is implemented.**
+### SLA & Escalation
+
+| Severity | Default SLA | Alert |
+|----------|-------------|-------|
+| Critical | 24 hours | Slack on first detection + separate SLA breach alert |
+| High | 72 hours | SLA breach alert |
+| Medium | 7 days | SLA breach alert |
+| Low | 30 days | SLA breach alert |
+
+Configure in `checklist_l3.yaml` → `level3.sla_hours`. Slack webhook from `SLACK_WEBHOOK_URL` in `.env` (substituted via `${SLACK_WEBHOOK_URL}` in config).
+
+### Posture Score Formula
+
+```
+posture_score = max(0, 100 - penalty)
+
+penalty per OPEN finding:
+  critical:           25 pts
+  critical + SLA breached: 40 pts
+  high:               10 pts
+  medium:              3 pts
+  low:                 1 pt
+```
+
+Trend reports written to `reports/trend_report_{timestamp}.json` and `.md` after each scan (when enabled).
+
+### Key Design Decision
+
+**The agent must report its own health and never assume success.** Level 3 wraps L2 without replacing detection — it adds memory, scheduling, escalation, and explicit per-check health records. A permission-denied or timeout check is stored as `scan_health.status=error`, not ignored.
+
+```
+checklist_l3.yaml → OrchestratorL3
+  ├── Pre-scan: SLATracker + SLA Slack alerts
+  ├── OrchestratorL2 (4 domains — same as Level 2)
+  ├── FindingLifecycleManager → SQLite findings
+  ├── EscalationEngine → Slack (new/re-opened Criticals)
+  ├── Scan health → scan_health table (every check: success or error)
+  ├── AutoRemediator (optional, off by default)
+  └── TrendReporter → posture score + history
+         ↑
+  ScanScheduler (--daemon) fires on interval/cron
+```
+
+### My Work Summary
+
+- Built SQLite persistence layer with four tables and append-only audit log
+- Implemented finding lifecycle state machine with cross-run fingerprint deduplication
+- Added Slack escalation for Critical findings and SLA breach alerts (`escalated` flag prevents spam)
+- Integrated APScheduler for daemon mode (`--daemon`) with configurable interval/cron
+- Built posture trend reporter with improving/degrading/stable direction
+- Extended dashboard with full Level 3 tab: daemon control, lifecycle table, scan health, audit trail
+- Added `verify_acceptance_l3.py` and [`checklist_l3.yaml`](checklist_l3.yaml)
+- Verified end-to-end on live AWS account `563999587682` — **all Level 3 acceptance criteria pass**
+
+### Level 3 Verification (Completed)
+
+| Check | Result |
+|-------|--------|
+| `scripts/verify_acceptance_l3.py` | **All criteria PASS** (config, DB schema, lifecycle, dedup, posture, audit, scan health, escalation mock, SLA, trend, scheduler) |
+| Live L3 scan #1 (`python main.py --level 3`) | 24 new findings, 12 Critical Slack alerts sent |
+| Live L3 scan #2 (same command) | **0 new, 24 updated** — no duplicate Slack for same Criticals |
+| `--trend` | `trend_report_*.json/.md` with scan history and posture direction |
+| Dashboard **Run L3 Once** / **Start Daemon** | Same pipeline as CLI; KPIs from `storage/findings.db` |
+
+**Typical L3 DB state** after multiple runs (varies by environment):
+
+| Metric | Example (this account) |
+|--------|------------------------|
+| Persistent findings | 24 rows (fingerprints) |
+| Recent scan lifecycle | `0 new`, `18–24 updated` per run |
+| Escalated Criticals | 12 (Slack sent once each) |
+| Audit log entries | 100+ (every action logged) |
+| Scan health rows | 84+ (21 checks × multiple runs) |
+| Posture score | 0/100 with many open Criticals (expected until remediated) |
+
+> **Note on SLA breach demo:** Default Critical SLA is 24 hours. To test SLA alerts quickly, temporarily set `level3.sla_hours.critical: 0.001` in `checklist_l3.yaml` (~4 seconds), run twice, and wait for the breach alert in Slack.
 
 ---
 
-## 12. Project Structure
+## 12. Level 3 — Acceptance Criteria
+
+Per the Aivar problem statement, Level 3 requires:
+
+| # | Criterion (Aivar) | Status | How It Is Met |
+|---|-------------------|--------|---------------|
+| 1 | Runs full scans on a configurable schedule with no manual trigger | **Pass** | `level3.schedule` in [`checklist_l3.yaml`](checklist_l3.yaml); `python main.py --level 3 --daemon`; dashboard **Start Daemon**; [`scheduler/scan_scheduler.py`](scheduler/scan_scheduler.py) |
+| 2 | Stores findings with full lifecycle: opened, updated, resolved, re-opened, SLA status | **Pass** | [`agent/lifecycle_manager.py`](agent/lifecycle_manager.py); `findings` table columns `status`, `sla_deadline`, `sla_breached` |
+| 3 | Deduplicates across scan runs — recurring finding updates record, not adds new | **Pass** | `compute_fingerprint()` → existing row `status=updated`, `last_seen=NOW()` |
+| 4 | Escalates Critical findings to configured notification channel immediately | **Pass** | [`agent/escalation.py`](agent/escalation.py) → Slack webhook; `escalated=True` on first alert |
+| 5 | SLA tracking: alerts when Critical unresolved beyond 24 hours | **Pass** | Pre-scan [`agent/sla_tracker.py`](agent/sla_tracker.py) + `check_sla_breaches()`; default Critical SLA 24h |
+| 6 | Audit trail: all scans, findings, actions logged with actor and timestamp | **Pass** | Append-only [`storage/audit_store.py`](storage/audit_store.py) → `audit_log` table |
+| 7 | Trend reporting: posture score over time, improving or degrading | **Pass** | [`reporter/trend_reporter.py`](reporter/trend_reporter.py); `trend_report_*.json/.md`; `--trend` flag |
+| 8 | Scan health: failed checks surfaced, never silently skipped | **Pass** | `scan_health` table — every check recorded as `success` or `error` with message |
+| 9 | Optional safe auto-remediation with human-approval gate | **Pass** | [`agent/auto_remediation.py`](agent/auto_remediation.py) — off by default, dry-run, LOW severity + allowlist only |
+
+Verify locally:
+
+```powershell
+python scripts\verify_acceptance_l3.py
+```
+
+Expected output: `ALL LEVEL 3 ACCEPTANCE CRITERIA PASSED`
+
+**Level 2 regression** (ensure L3 did not break L2):
+
+```powershell
+python main.py --level 2 --config checklist_l2.yaml
+python scripts\verify_acceptance_l2.py
+```
+
+Inspect persistence after a live scan:
+
+```powershell
+# SQLite DB (findings, scan_runs, audit_log, scan_health)
+# storage/findings.db
+
+# Trend reports
+# reports/trend_report_*.json
+```
+
+---
+
+## 13. Project Structure
 
 ```
 offensive-security-agent/
-├── main.py                      # CLI entry point (--level 1 or 2)
+├── main.py                      # CLI entry point (--level 1, 2, or 3; --daemon; --trend)
 ├── checklist.yaml               # Level 1 scan config (13 checks)
 ├── checklist_l2.yaml            # Level 2 multi-domain config
+├── checklist_l3.yaml            # Level 3 autonomous config (schedule, Slack, SLA)
 ├── test_secrets.env             # Demo fake secrets for L2 scanner
 ├── test_vulnerable_requirements.txt  # Demo CVE pins for L2
+├── storage/                     # Level 3 SQLite persistence
+│   ├── database.py              # SQLAlchemy models + engine
+│   ├── audit_store.py           # Append-only audit log
+│   └── findings_store.py        # Dashboard read helpers
+├── scheduler/
+│   └── scan_scheduler.py        # APScheduler wrapper (L3)
 ├── requirements.txt
 ├── agent2_level1_plan.md        # Technical build plan (Level 1)
-├── agent2_level2_plan.md        # Technical build plan (Level 2)
-├── config/loader.py             # YAML/JSON config loader
-├── models/                      # Pydantic: ScanConfig, RawFinding, ValidatedFinding, ScanReport
+├── agent2_level2_plan.md          # Technical build plan (Level 2)
+├── agent2_level3_plan.md          # Technical build plan (Level 3)
+├── config/loader.py             # YAML/JSON config loader (+ env substitution)
+├── models/                      # Pydantic: ScanConfig, Level3Config, findings, reports
 ├── checks/
 │   ├── iam_checks.py            # 5 IAM checks
 │   ├── s3_checks.py             # 3 S3 checks
@@ -865,13 +1052,23 @@ offensive-security-agent/
 ├── agent/
 │   ├── orchestrator.py          # L1 parallel execution + report assembly
 │   ├── orchestrator_l2.py       # L2 multi-domain orchestrator
-│   ├── deduplicator.py          # Cross-domain dedup (L2)
+│   ├── orchestrator_l3.py       # L3 wrapper (persistence, lifecycle, escalation)
+│   ├── lifecycle_manager.py     # Finding state machine (L3)
+│   ├── escalation.py            # Slack webhook escalation (L3)
+│   ├── sla_tracker.py           # SLA breach detection (L3)
+│   ├── auto_remediation.py      # Optional dry-run remediation (L3)
+│   ├── deduplicator.py          # Cross-domain dedup (L2/L3 fingerprint)
 │   ├── impact_ranker.py         # Business impact scoring (L2)
 │   ├── intelligence.py          # LLM enrichment + severity guard rails
 │   └── runner.py                # Scan entry for CLI and dashboard
-├── reporter/                    # JSON + Markdown report generators
-├── dashboard/                   # FastAPI web UI (L1 + L2)
-│   ├── app.py                   # API routes
+├── reporter/
+│   ├── json_reporter.py         # JSON reports
+│   ├── markdown_reporter.py     # Markdown reports
+│   └── trend_reporter.py        # Posture trend reports (L3)
+├── dashboard/                   # FastAPI web UI (L1 + L2 + L3)
+│   ├── app.py                   # API routes (incl. /api/l3/*)
+│   ├── daemon_service.py        # L3 daemon + one-shot scan (L3)
+│   ├── l3_service.py            # SQLite queries for L3 UI
 │   ├── misconfig_service.py     # Create/verify/cleanup demo misconfigs
 │   ├── demo_service.py          # Full demo orchestration
 │   ├── scan_service.py          # Scan with step-by-step progress
@@ -879,19 +1076,21 @@ offensive-security-agent/
 ├── utils/
 │   ├── aws_client.py            # Boto3 session factory
 │   ├── http_client.py           # API scanner HTTP session (L2)
-│   ├── osv_client.py              # OSV batch + vuln detail fetch, CVSS parsing (L2)
+│   ├── osv_client.py            # OSV batch + vuln detail fetch, CVSS parsing (L2)
 │   ├── llm_client.py            # Groq / Grok / OpenAI resolver
 │   └── retry.py                 # safe_aws_call with backoff
 ├── scripts/
 │   ├── verify_acceptance.py              # Level 1 acceptance check
 │   ├── verify_acceptance_l2.py           # Level 2 acceptance check
+│   ├── verify_acceptance_l3.py           # Level 3 acceptance check
 │   └── ...
-└── reports/                     # Generated scan reports (*_l2.json for Level 2)
+├── storage/findings.db          # Generated at runtime (not committed)
+└── reports/                     # Scan + trend reports
 ```
 
 ---
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
@@ -913,6 +1112,13 @@ offensive-security-agent/
 | **Level 2:** Empty CVE IDs / CVSS in report | Requires OSV detail fetch — ensure network to `api.osv.dev`; re-run Level 2 scan |
 | **Level 2:** Rate-limit check slow | 30 HTTP requests per API target — normal (~30s per target) |
 | **Level 2:** Viewing wrong tab | API/CVE/secrets appear on **Level 2** tab only — Level 1 is AWS-only |
+| **Level 3:** `ModuleNotFoundError: sqlalchemy/apscheduler` | Run `pip install -r requirements.txt` |
+| **Level 3:** No Slack alerts | Set `SLACK_WEBHOOK_URL` in `.env`; create Incoming Webhook at [api.slack.com/apps](https://api.slack.com/apps) |
+| **Level 3:** Duplicate Slack on re-scan | Expected only on first detection; `escalated=True` blocks repeats — verify second run shows `0 new, N updated` |
+| **Level 3:** Daemon already running | Stop via dashboard **Stop Daemon** or Ctrl+C on `main.py --daemon` |
+| **Level 3:** DB locked | Only one writer at a time; stop daemon before manual DB edits |
+| **Level 3:** Test SLA breach quickly | Temporarily set `level3.sla_hours.critical: 0.001` in `checklist_l3.yaml` (~4 seconds) |
+| **Level 3:** Posture score 0 | Many open Critical findings — score = `100 - penalty`; resolve findings to improve |
 
 ---
 

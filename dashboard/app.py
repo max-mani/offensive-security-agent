@@ -15,22 +15,37 @@ if str(PROJECT_ROOT) not in sys.path:
 
 load_dotenv(PROJECT_ROOT / ".env")
 
-from dashboard import demo_service, job_service, misconfig_service, report_store, scan_service  # noqa: E402
+from dashboard import daemon_service, demo_service, job_service, l3_service, misconfig_service, report_store, scan_service  # noqa: E402
 from utils.llm_client import resolve_llm_config  # noqa: E402
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 app = FastAPI(
     title="Aivar Offensive Security Agent Dashboard",
-    description="Level 1 & 2 multi-domain security scan dashboard",
-    version="2.0.0",
+    description="Level 1, 2 & 3 security scan dashboard",
+    version="3.0.0",
 )
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 def _any_job_running() -> bool:
-    return job_service.is_busy() or scan_service.is_running()
+    return (
+        job_service.is_busy()
+        or scan_service.is_running()
+        or daemon_service.is_busy()
+        or daemon_service.is_daemon_running()
+    )
+
+
+def _level3_deps_ok() -> bool:
+    try:
+        from agent.runner import check_level3_dependencies
+
+        check_level3_dependencies()
+        return True
+    except RuntimeError:
+        return False
 
 
 @app.get("/")
@@ -80,6 +95,10 @@ async def health():
         "llm_provider": llm_provider,
         "llm_model": llm_model,
         "level2_ready": _level2_deps_ok(),
+        "level3_ready": _level3_deps_ok(),
+        "slack_configured": bool(os.getenv("SLACK_WEBHOOK_URL")),
+        "daemon_state": daemon_service.get_status()["daemon_state"],
+        "l3_scan_state": daemon_service.get_status()["l3_scan_state"],
         "scan_state": scan_st["state"],
         "job_state": job_st["state"],
         "active_job": active,
@@ -192,3 +211,80 @@ async def demo_full():
 async def jobs_status():
     """Unified status for setup/cleanup/verify/full_demo jobs."""
     return job_service.get_status()
+
+
+@app.post("/api/l3/run")
+async def l3_run_once(config: str | None = Query(None)):
+    if _any_job_running() and not daemon_service.is_daemon_running():
+        raise HTTPException(status_code=409, detail="Another operation is already running.")
+    if daemon_service.is_busy():
+        raise HTTPException(status_code=409, detail="L3 scan already running.")
+    if not _level3_deps_ok():
+        raise HTTPException(
+            status_code=400,
+            detail="Level 3 packages missing. Run: pip install -r requirements.txt",
+        )
+    config_path = config or "checklist_l3.yaml"
+    if not daemon_service.run_once(config_path):
+        raise HTTPException(status_code=409, detail="L3 scan or daemon already active.")
+    return {"message": "Level 3 scan started", "status": daemon_service.get_status()}
+
+
+@app.post("/api/l3/daemon/start")
+async def l3_daemon_start(config: str | None = Query(None)):
+    if scan_service.is_running() or job_service.is_busy():
+        raise HTTPException(status_code=409, detail="Another operation is already running.")
+    if daemon_service.is_daemon_running():
+        raise HTTPException(status_code=409, detail="Daemon already running.")
+    if not _level3_deps_ok():
+        raise HTTPException(status_code=400, detail="Level 3 packages missing.")
+    config_path = config or "checklist_l3.yaml"
+    if not daemon_service.start_daemon(config_path):
+        raise HTTPException(status_code=409, detail="Failed to start daemon.")
+    return {"message": "Daemon started", "status": daemon_service.get_status()}
+
+
+@app.post("/api/l3/daemon/stop")
+async def l3_daemon_stop():
+    if not daemon_service.stop_daemon():
+        raise HTTPException(status_code=409, detail="Daemon is not running.")
+    return {"message": "Daemon stopped", "status": daemon_service.get_status()}
+
+
+@app.get("/api/l3/daemon/status")
+async def l3_daemon_status():
+    return daemon_service.get_status()
+
+
+@app.get("/api/l3/findings")
+async def l3_findings(status: str | None = Query(None)):
+    return l3_service.get_findings(status=status)
+
+
+@app.get("/api/l3/audit")
+async def l3_audit(limit: int = Query(50, ge=1, le=200)):
+    return l3_service.get_audit(limit=limit)
+
+
+@app.get("/api/l3/scan-health")
+async def l3_scan_health(scan_run_id: str | None = Query(None)):
+    return l3_service.get_scan_health(scan_run_id)
+
+
+@app.get("/api/l3/trend")
+async def l3_trend():
+    return l3_service.get_summary()
+
+
+@app.post("/api/l3/trend/generate")
+async def l3_trend_generate():
+    from config.loader import load_config
+    from reporter.trend_reporter import TrendReporter
+
+    config = load_config(PROJECT_ROOT / "checklist_l3.yaml")
+    keep_n = 30
+    if config.level3:
+        keep_n = config.level3.trend_report.keep_last_n_scans
+    report = TrendReporter(config.scan.output_dir, keep_last_n=keep_n).generate()
+    return report
+

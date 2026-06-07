@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
 
-def _fingerprint(finding: ValidatedFinding) -> str:
+def compute_fingerprint(finding: ValidatedFinding) -> str:
     """Two findings are duplicates if they share check_id + normalized resource_id + severity."""
     resource = finding.resource_id.lower().strip()
     resource = re.sub(r"==[\d.]+$", "", resource)
@@ -25,7 +25,7 @@ def deduplicate(findings: List[ValidatedFinding]) -> List[ValidatedFinding]:
     seen: dict[str, ValidatedFinding] = {}
 
     for f in findings:
-        fp = _fingerprint(f)
+        fp = compute_fingerprint(f)
         if fp not in seen:
             seen[fp] = f
         else:
@@ -43,6 +43,8 @@ def deduplicate(findings: List[ValidatedFinding]) -> List[ValidatedFinding]:
                 seen[fp] = f
 
     result = list(seen.values())
+    for f in result:
+        f.fingerprint = compute_fingerprint(f)
     removed = len(findings) - len(result)
     logger.info(
         "[dedup] %d findings -> %d after deduplication (%d removed)",
