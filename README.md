@@ -1,175 +1,131 @@
-# Agent 2: Offensive Security Agent
+# Offensive Security Agent — Aivar Hiring Challenge
 
-**Aivar Innovations — AI/ML Engineering Hiring Challenge, June 2026**
+**Candidate:** Manikandan M  
+**GitHub:** [github.com/max-mani/offensive-security-agent](https://github.com/max-mani/offensive-security-agent)  
+**Tested on:** AWS account `563999587682`, region `ap-south-1`, June 2026
 
-**Candidate:** Manikandan M — [github.com/max-mani/offensive-security-agent](https://github.com/max-mani/offensive-security-agent)
-
-**Verified on:** AWS account `563999587682`, region `ap-south-1` (Mumbai), 7 June 2026
-
-All three levels complete and verified.
+All three levels are done and verified on a real AWS account.
 
 ---
 
-## The problem this solves
+## What this is
 
-Security misconfigurations don't announce themselves. A developer opens port 22 to `0.0.0.0/0` on a test instance, forgets about it, and it stays open for six months. A credential gets hardcoded in a config file during a late-night fix. An IAM user never gets MFA enabled because nobody checked after the account was created. These aren't exotic attacks — they're the mundane, boring failures that show up in most breach post-mortems.
+A security scanner that checks your AWS account, your API endpoints, your dependency files, and your config files for misconfigurations and vulnerabilities. At Level 3 it runs continuously on a schedule, remembers findings across runs, tracks whether things get fixed, and sends Slack alerts for critical issues.
 
-Manual security reviews happen quarterly at best. Automated scanners exist, but most either produce so many false positives they get ignored, or they're so conservative they miss obvious things. The goal here was to build something that behaves like a careful engineer doing the review: confident about things that are genuinely dangerous, honest about uncertainty, and explicit when it cannot access something.
-
----
-
-## The one decision that everything else follows from
-
-**The LLM never creates findings. It only enriches them.**
-
-This is the most important design decision in the entire project. Every critical severity finding comes from a direct API call — `AccountMFAEnabled=0`, `PublicGrants` on an S3 bucket, `0.0.0.0/0` in a security group inbound rule. If the API says it's a problem, it's a problem. The LLM gets handed that evidence and adds a business impact statement, a remediation command, and a confidence score. It cannot upgrade or invent findings.
-
-The reason this matters: LLMs are pattern matchers. They will confidently assign "critical" severity to ambiguous situations because that's what security reports usually do. The `DETERMINISTIC_EVIDENCE` map in `agent/intelligence.py` enforces a floor — specific high-stakes checks cannot be downgraded even if the model expresses uncertainty, because the API evidence is unambiguous. Root MFA is either enabled or it isn't. An S3 bucket either has public grants or it doesn't.
-
-This made it straightforward to hit the zero false positives requirement. The harder thing was making sure the LLM didn't also downgrade findings that should stay critical.
+The dashboard is a web UI that shows everything — you don't need to touch the terminal for any of the demos.
 
 ---
 
-## Level 1 — AWS Infrastructure Scanner
+## The main design decision
 
-The core pipeline: `checklist.yaml` defines 13 checks, the orchestrator runs them in parallel via `ThreadPoolExecutor`, each check calls boto3 and returns a `RawFinding`, the intelligence layer enriches it to a `ValidatedFinding`, and the reporters write JSON and Markdown.
+The AI never decides what counts as a security problem. That's done by direct API calls — boto3 responses, HTTP checks, regex patterns, CVE database lookups. If the API says MFA is off, it's off. The LLM only gets involved after a finding already exists, to explain what the risk means in plain English and suggest a fix.
 
-13 checks covering root MFA, access keys, IAM user MFA, unused keys, password policy, S3 public ACLs, S3 public policies, S3 encryption, open SSH/RDP security groups, unencrypted EBS volumes, CloudTrail logging, and public EBS snapshots. The YAML config lets you enable/disable individual checks and set a `severity_cap` per check — useful for environments where a specific finding class is known and accepted.
+This is why critical findings have zero false positives. The scanner doesn't ask the AI "is this dangerous?" — it checks the actual API response.
 
-One thing I got wrong in an early version: error handling was too global. If the IAM check hit a 403, the whole scan would surface a generic error. Changed it so every check has its own try/catch and any API failure produces a `CheckError` that goes into the report's `scan_errors` list. The scan continues. A permission denied on one check does not mean the resource is clean — it means you couldn't check, and that distinction matters.
+---
 
-```
-Verified on live infrastructure: 8 findings across 13 checks
-Precision (Critical): 100%  — 0 false positives
-Recall: 100%  — all 6 known intentional misconfigs detected
-F1: 1.00
-Duration: 87s  — 13 parallel checks
-Check success rate: 13/13
-```
+## Level 1 — AWS Infrastructure
 
-![Dashboard — findings table with KPI cards](docs/screenshots/04-dashboard-findings.png)
+Thirteen checks across IAM, S3, EC2, and CloudTrail, all running in parallel. The config is in `checklist.yaml` — you can enable or disable individual checks and set a severity cap per check.
 
-![Single finding — raw evidence and remediation command](docs/screenshots/05-finding-detail.png)
+**Checks:**
+- IAM: root MFA, root access keys, user MFA, unused access keys, password policy
+- S3: public ACL, public policy, encryption disabled
+- EC2: SSH open to internet, RDP open to internet, unencrypted EBS volumes
+- CloudTrail: logging disabled
+- EBS: public snapshots
 
-![verify_acceptance.py — all criteria passed](docs/screenshots/08-acceptance-pass.png)
+Each check calls boto3, gets a raw finding, and passes it to the LLM for impact and remediation text. If a check hits a permission error it logs it and moves on — it doesn't hide the failure.
+
+For the demo I create five intentional misconfigs using a second admin-only AWS user: two public S3 buckets, one IAM user without MFA, and two open security groups. The read-only scanner user finds them all. Three more real issues come from the account itself — root MFA disabled, no CloudTrail, weak password policy.
+
+**Demo results:**
+- 8 findings (5 Critical, 2 High, 1 Medium)
+- Precision on Critical: 100%
+- Recall: 100%
+- F1: 1.00
+- Scan duration: ~87 seconds
 
 ---
 
 ## Level 2 — Multi-Domain Scanner
 
-The challenge at Level 2 is that "security finding" means something different depending on where it comes from. A public S3 bucket and a missing `X-Frame-Options` header are both findings, but one is directly exploitable and one is a hardening recommendation. Ranking them alphabetically or by domain is useless. The solution is a weighted impact score:
+Same 13 AWS checks plus three new domains, all running at the same time.
 
-```
-impact_score = (severity_score + check_bonus) × domain_weight × (confidence / 100)
-```
+**API endpoint scanner** — sends real HTTP requests and checks for: missing authentication, CORS misconfiguration, no rate limiting, missing security headers, verbose error responses, dangerous HTTP methods.
 
-Domain weights reflect real-world exploitability: hardcoded secrets (1.3×) sit above AWS infrastructure misconfigs (1.1×) which sit above API findings (1.0×) which sit above CVEs (0.9×) — CVEs are weighted lower because a vulnerable package in a dependency manifest is not the same as a vulnerable package running in production. Individual checks get bonuses for things that are disproportionately dangerous regardless of domain (root access keys, direct credential exposure, CORS with credentials).
+**Dependency CVE scanner** — queries the OSV database for known vulnerabilities in your requirements files. Returns CVE ID, CVSS score, affected version, and fixed version.
 
-Four domains run in parallel:
+**Secrets scanner** — twelve regex patterns looking for hardcoded credentials: AWS keys, API tokens, private keys, database connection strings. Has false-positive suppression for obvious placeholders.
 
-- **AWS infrastructure** — same 13 checks from Level 1
-- **API endpoints** — 6 HTTP checks: authentication bypass, CORS misconfiguration, rate limiting, security headers, error disclosure, method exposure
-- **Dependency CVEs** — OSV batch query with per-vulnerability detail fetch (CVE ID, CVSS, fixed version)
-- **Secrets** — 12 regex patterns covering AWS keys, API tokens, private keys, connection strings, with false-positive suppression for obvious placeholders
+After all four domains finish, every finding goes through deduplication (same check + resource + severity = one row, not four) and then gets sorted by a weighted impact score. The formula is severity times a domain weight times confidence. Secrets and AWS misconfigs score higher than CVEs because a hardcoded key is exploitable immediately — a vulnerable package in requirements.txt might not even be running.
 
-The deduplication fingerprint is `SHA-256(check_id + resource_id + severity)`. This handles the case where two domains independently detect the same underlying issue — you get one finding, not two.
-
-LLM enrichment is only used for AWS findings. API, CVE, and secrets domains have structured evidence with deterministic remediation steps — running LLM enrichment on "this package has CVE-2024-12345, fix is version 2.1.0" would waste quota and add nothing. The template layer handles those directly.
-
-![Agent Performance panel — Level 2 metrics](docs/screenshots/14-agent-metrics-l2.png)
+The nine-stage pipeline has a live graph in the dashboard so you can watch data flow between domains as the scan runs.
 
 ---
 
 ## Level 3 — Continuous Autonomous Scanning
 
-Level 3 is where the design gets interesting, because the hardest problem isn't the scheduling — it's making sure the agent never lies about what it knows.
+This is where it becomes a proper service rather than a one-off tool.
 
-The failure mode I was most careful to avoid: a check that errors silently, which makes the report look clean when it isn't. Every check attempted at Level 3 writes a row to `scan_health` — either `success` or `error` with the specific error type and message. The dashboard surfaces this directly. If CloudTrail checks fail with a 403, you see that explicitly. You don't see "no CloudTrail findings" and assume everything is fine.
+**Schedule:** The daemon runs L3 scans on a schedule. Default is every 6 hours. You can set a custom interval in hours or minutes from the dashboard — no config file edit needed.
 
-**Finding lifecycle** across scan runs is handled by `FindingLifecycleManager`. The fingerprint ties each finding to a single database record across its lifetime. On each scan, a finding is either new, updated (same fingerprint, still present), re-opened (was resolved, now present again), or absent. Absent findings increment a `consecutive_misses` counter — after 3 consecutive misses, the finding auto-resolves. This mirrors how you'd actually want to think about remediation: you don't declare a problem fixed the moment it disappears from one scan, because it might have just been a transient API error.
+**Persistent findings:** Every finding gets a fingerprint based on check ID, resource ID, and severity. That fingerprint links scans across time. Instead of creating a new row every scan, the system updates the existing row. You get one record per misconfiguration for its entire life.
 
-**SLA tracking** is per-severity: Critical has 24 hours, High 72 hours, Medium 7 days. These are set at first detection and evaluated on every scan. A breached SLA raises the posture penalty from 25 to 40 points per finding. Slack escalation fires once on first detection of a Critical — not on every scan, because alert fatigue is itself a failure mode.
+**Lifecycle states:** A finding starts as `opened`. If it shows up again on the next scan it becomes `updated`. If it disappears for three consecutive scans it auto-resolves — three, not one, because a single API error shouldn't mark a real problem as fixed. If a resolved finding comes back it becomes `re-opened`.
 
-**Posture score** is a simple penalty formula applied to all currently open findings:
+**SLA tracking:** Critical findings must be resolved within 24 hours. High within 72 hours. Medium within 7 days. If the deadline passes, the posture score penalty increases and a Slack alert fires.
 
-```
-score = max(0, 100 − total_penalty)
+**Slack escalation:** New Critical findings and SLA breaches post to a Slack webhook once per finding. Not on every scan — once. Alert fatigue is a real problem.
 
-Critical: 25 pts
-Critical + SLA breached: 40 pts
-High: 10 pts
-Medium: 3 pts
-Low: 1 pt
-```
+**Posture score:** A 0–100 number that drops based on open findings. Each Critical costs 25 points (40 if SLA is breached). Seven open Criticals gives you 0/100 — that's correct. The score is something teams can track over time. After at least two scans you also get a trend direction: Improving, Stable, or Degrading.
 
-A single scan with 7 open Critical findings produces a score of 0/100. That's intentional. The score isn't meant to make you feel good — it's meant to give teams a number they can track across deployments. Trend direction (Stable / Improving / Degrading) is computed as the delta between the first and most recent posture score in history, requiring at least two scan runs to establish direction.
+**Scan health:** Every check writes a row to the `scan_health` table — success or error with the exact error message. The dashboard shows this so you can never get a falsely clean report because a check failed quietly.
 
-![L3 dashboard — lifecycle table with status filters](docs/screenshots/17-l3-lifecycle.png)
-
-![L3 posture trend after two scans](docs/screenshots/15-l3-posture-trend.png)
-
-![L3 metrics — F1, SLA compliance, scan reliability](docs/screenshots/16-l3-metrics.png)
+**SOC dashboard:** The Level 3 tab is a live security operations view with animated KPI cards (posture score, trend, open criticals, SLA breaches, F1, SLA compliance, reliability, resolution rate), a pipeline flow diagram, posture chart, activity feed, and critical findings list.
 
 ---
 
-## Metrics and evaluation
+## Setup
 
-Security scanning is a binary classification problem: for each resource, the agent either reports a finding or it doesn't. Precision and recall are the natural way to evaluate it.
-
-The ground truth is defined in `metrics/ground_truth.py` — a registry of known intentional misconfigs created for the demo (public S3 buckets, open security groups, root MFA disabled, etc.). After a scan, the metrics calculator compares the agent's findings against this list.
-
-| Metric | Live result (L1 demo run) |
-|--------|--------------------------|
-| Verified precision (Critical) | 100% |
-| Verified recall | 100% (demo + account baseline checks found) |
-| F1 score | 1.00 |
-| Avg confidence score | 93.5 |
-| Scan duration | 87s |
-| Check success rate | 13/13 |
-
-These metrics are embedded in every scan report JSON and shown in the dashboard **Agent Performance** panel after each run. Level 3 adds reliability rate (successful scans / total scans) and resolution rate (findings resolved over time).
-
-![Agent Performance panel](docs/screenshots/13-agent-metrics-l1.png)
-
----
-
-## Running it
-
-**Requirements:** Python 3.10+, AWS credentials in `ap-south-1`, a free Groq API key (`GROQ_API_KEY`).
+**You need:** Python 3.10+, AWS credentials for `ap-south-1`, a free Groq API key.
 
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 copy .env.example .env
-# Add AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, GROQ_API_KEY to .env
+# Fill in AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, GROQ_API_KEY
 ```
 
-Dashboard (all three levels, no terminal needed for demos):
+Start the dashboard:
 
 ```powershell
 python -m uvicorn dashboard.app:app --host 127.0.0.1 --port 8080 --reload
 ```
 
-Open **http://127.0.0.1:8080**, pick a level tab, click Run.
+Open `http://127.0.0.1:8080`. Pick a tab. Click Run.
 
-CLI if you prefer:
+---
 
-```powershell
-python main.py --config checklist.yaml --verbose              # Level 1
-python main.py --level 2 --config checklist_l2.yaml --verbose # Level 2
-python main.py --level 3 --config checklist_l3.yaml --verbose # Level 3 (one shot)
-python main.py --level 3 --config checklist_l3.yaml --daemon  # Level 3 continuous
-```
+## AWS credentials needed
 
-For a full 8-finding demo (5 intentional + 3 natural account defaults), you need a second IAM user with admin permissions to create the test resources. The dashboard **Run Full Demo** button handles the whole flow — creates 5 misconfigs, verifies the scanner can see them, runs the scan, and shows results. No admin CLI needed.
+Two IAM users:
 
-| User | Role | Credentials file |
-|------|------|-----------------|
-| `aivar-scanner` | Run all scans | `.env` — read-only policies |
-| `aivar-admin` | Create/delete test resources | `.env.admin` — admin, for setup only |
+| User | What it does | Credential file |
+|------|-------------|-----------------|
+| `aivar-scanner` | Runs all scans — read-only policies | `.env` |
+| `aivar-admin` | Creates and deletes test misconfigs | `.env.admin` |
 
-Expected 8 findings:
+The scanner never needs write access. The admin user is only for the demo setup.
+
+---
+
+## Running the demo
+
+Click **Run Full Demo** on the Level 1 tab. It creates the five test misconfigs, verifies the scanner can see them, runs the scan, and loads the report. Takes about 90 seconds.
+
+Expected findings:
 
 | Finding | Severity |
 |---------|----------|
@@ -182,56 +138,57 @@ Expected 8 findings:
 | CloudTrail not logging | High |
 | Weak password policy | Medium |
 
-After setup: `python scripts\verify_acceptance.py` should show `ALL ACCEPTANCE CRITERIA PASSED`.
+---
+
+## CLI (if you prefer terminal over dashboard)
+
+```powershell
+python main.py --config checklist.yaml --verbose              # Level 1
+python main.py --level 2 --config checklist_l2.yaml --verbose # Level 2
+python main.py --level 3 --config checklist_l3.yaml --verbose # Level 3, one shot
+python main.py --level 3 --config checklist_l3.yaml --daemon  # Level 3, continuous
+```
 
 ---
 
 ## Verification
 
-```
-python scripts\verify_acceptance.py        → ALL ACCEPTANCE CRITERIA PASSED
-python scripts\verify_acceptance_l2.py     → ALL LEVEL 2 ACCEPTANCE CRITERIA PASSED
-python scripts\verify_acceptance_l3.py     → ALL LEVEL 3 ACCEPTANCE CRITERIA PASSED
-python scripts\verify_dashboard_buttons.py → All dashboard button API checks passed
+```powershell
+python scripts\verify_acceptance.py        # ALL ACCEPTANCE CRITERIA PASSED
+python scripts\verify_acceptance_l2.py     # ALL LEVEL 2 ACCEPTANCE CRITERIA PASSED
+python scripts\verify_acceptance_l3.py     # ALL LEVEL 3 ACCEPTANCE CRITERIA PASSED
+python scripts\verify_dashboard_buttons.py # All dashboard button API checks passed
 ```
 
----
+Full end-to-end test that creates misconfigs, scans, then deletes everything:
 
-## Structure
-
-```
-agent/          orchestrators (L1/L2/L3), LLM intelligence, lifecycle, SLA, impact ranking
-checks/         boto3 checks, API checks, CVE scanner, secrets scanner
-config/         YAML/JSON checklist loader
-dashboard/      FastAPI app, static frontend (vanilla JS + CSS), service layer
-metrics/        Precision/recall/F1 calculator, ground truth registry
-models/         Pydantic models for findings, config, reports
-reporter/       JSON reporter, Markdown reporter, trend reporter
-scheduler/      APScheduler-based daemon for Level 3
-scripts/        Setup, verify, acceptance test scripts
-storage/        SQLite database models, findings store, audit store
-checklist.yaml      Level 1 config — 13 AWS checks
-checklist_l2.yaml   Level 2 config — adds API, CVE, secrets
-checklist_l3.yaml   Level 3 config — adds schedule, SLA, Slack, auto-remediation settings
-main.py             CLI entry point
+```powershell
+python scripts\run_full_test_and_cleanup.py
 ```
 
 ---
 
-## Screenshots
+## Project structure
 
-*(Images go in `docs/screenshots/` — filename references above will auto-render once added)*
+```
+agent/          Orchestrators for L1/L2/L3, LLM intelligence, lifecycle, SLA, impact ranking
+checks/         All detection code — boto3, HTTP, CVE, secrets
+config/         YAML config loader
+dashboard/      FastAPI backend + vanilla JS frontend
+metrics/        Precision/recall/F1 calculator and ground truth registry
+models/         Pydantic models for findings, reports, config
+reporter/       JSON and Markdown report writers, trend reporter
+scheduler/      APScheduler daemon for Level 3
+scripts/        Acceptance tests, setup and cleanup scripts
+storage/        SQLite models — findings, scan runs, audit log
+checklist.yaml       Level 1 — 13 AWS checks
+checklist_l2.yaml    Level 2 — adds API, CVE, secrets
+checklist_l3.yaml    Level 3 — adds schedule, SLA, Slack settings
+main.py              CLI entry point
+```
 
-| Filename | What to capture |
-|----------|-----------------|
-| `01-architecture.png` | Architecture diagram |
-| `04-dashboard-findings.png` | L1 tab — KPI cards + findings table (8 findings) |
-| `05-finding-detail.png` | Expanded finding — raw evidence + remediation command |
-| `08-acceptance-pass.png` | Terminal: `verify_acceptance.py` all pass |
-| `11-verify-misconfigs.png` | `verify_test_misconfigs.ps1` 5/5 PASS |
-| `13-agent-metrics-l1.png` | Agent Performance panel — Precision, Recall, F1 |
-| `14-agent-metrics-l2.png` | L2 tab — domain breakdown, impact-ranked findings |
-| `15-l3-posture-trend.png` | L3 tab — after second scan, trend direction shown |
-| `16-l3-metrics.png` | L3 metrics — F1, SLA compliance, scan reliability |
-| `17-l3-lifecycle.png` | L3 findings table — lifecycle status filters |
-| `18-l3-slack.png` | Slack Critical escalation alert |
+---
+
+## A note on the LLM quota
+
+The free Groq tier has a daily token limit. When it's hit, the system falls back to template-based enrichment — structured remediation text without the LLM. Findings, severity, and evidence are not affected. All acceptance tests pass either way.
