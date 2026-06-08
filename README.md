@@ -121,7 +121,7 @@ The ground truth is defined in `metrics/ground_truth.py` — a registry of known
 | Metric | Live result (L1 demo run) |
 |--------|--------------------------|
 | Verified precision (Critical) | 100% |
-| Verified recall | 100% (6/6 known misconfigs found) |
+| Verified recall | 100% (demo + account baseline checks found) |
 | F1 score | 1.00 |
 | Avg confidence score | 93.5 |
 | Scan duration | 87s |

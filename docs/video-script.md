@@ -1,296 +1,186 @@
 # Video Script — Agent 2: Offensive Security Agent
 
-**Total time:** ~12 minutes  
-**Format:** Screen recording with your voice. Show the running system. No slides needed.
+**Total time:** ~4 minutes  
+**Format:** Screen recording with voiceover. Show the live dashboard — no slides.
 
-**Before you start recording:**
-- Dashboard running at `http://127.0.0.1:8080`
-- Terminal open, in the project folder, venv active
-- VS Code open with the repo
-- L3 data reset (go to Continuous tab → Reset L3 Data)
-- Browser on Level 1 tab
+**Pace:** ~140–150 words per minute. Move quickly through tables; pause only on architecture, one expanded finding, and the Level 3 SOC view.
+
+---
+
+## Before you record
+
+| Task | Done? |
+|------|-------|
+| Dashboard running: `python -m uvicorn dashboard.app:app --host 127.0.0.1 --port 8080` | |
+| `.env` (scanner) and `.env.admin` (demo) configured | |
+| Level 3 data reset if needed (Continuous tab → **Reset L3 Data**) | |
+| Browser on **Level 1** tab, dark theme looks good at 100% zoom | |
+| Mic tested, notifications off, screen 1920×1080 | |
 
 ---
 
 ## Part 1 — Introduction
-**Time: 0:00 – 0:40**
+**Time: 0:00 – 0:25**
 
-**SHOW:** Dashboard home page, Level 1 tab open, nothing run yet.
+**SHOW:** Dashboard home — header, three tabs (AWS Infrastructure · Multi-Domain · Continuous), Level 1 **Infrastructure overview** section.
 
 **SAY:**
 
-"Hi, I'm Manikandan. This is my submission for the Offensive Security Agent challenge from Aivar.
+"Hi, I'm Manikandan. This is my Offensive Security Agent for the Aivar challenge.
 
-I'll walk you through all three levels. Everything you're going to see is running against a real AWS account — no mocked data, no fake responses.
+Everything you see runs against a real AWS account — real boto3 calls, real HTTP checks, real CVE lookups. No mocked findings.
 
-Let me start with what this agent does in one line: it scans your AWS infrastructure, your APIs, your code dependencies, and your config files for security problems — and at Level 3, it does this on its own, on a schedule, without anyone clicking a button.
+The core design: **detection is deterministic, explanation is AI.** The scanner decides what is a finding using API evidence. The LLM only explains impact and remediation — it never downgrades or removes a Critical finding.
 
-The most important design decision I made — and I'll show you the code in a moment — is that the AI never decides what's a security problem. It only explains the problems that the scanner already found. I'll come back to why that matters."
+I'll walk through all three levels in four minutes."
 
 ---
 
-## Part 2 — Quick code tour
-**Time: 0:40 – 1:40**
+## Part 2 — Level 1: AWS Infrastructure
+**Time: 0:25 – 1:35**
 
-**SHOW:** Switch to VS Code. Show the folder tree on the left side. Then open `agent/intelligence.py` and scroll to lines 18–28 where `DETERMINISTIC_EVIDENCE` is defined.
+**SHOW:** Level 1 tab. Point to the overview — check breakdown chart, asset cards (total findings, critical, resources scanned, scan health). Scroll to **Demo Environment**.
 
 **SAY:**
 
-"Quick look at the structure. The `checks` folder has all the detection code — boto3 API calls, HTTP requests, CVE lookups, regex patterns. None of that uses an LLM.
+"Level 1 is a checklist-driven AWS scanner — thirteen checks across IAM, S3, EC2, and CloudTrail.
 
-The `agent/intelligence.py` file is where the AI comes in. But look at this — there's a map called `DETERMINISTIC_EVIDENCE`. This is a list of specific checks where we verify the raw API response directly in code. For example, if the boto3 response says `AccountMFAEnabled` equals zero, root MFA is disabled. That's a fact. The AI gets to explain it and suggest a fix — but it cannot say 'actually this is fine' and remove it.
+I use two AWS users: a read-only **scanner** for every scan, and an **admin** user only to create demo misconfigurations. The scanner never needs write access.
 
-This is how we get zero false positives on Critical findings. We don't trust the LLM to make the call on the dangerous stuff. We make the call ourselves using the API response.
+I'll click **Run Full Demo**. That creates five intentional misconfigs, verifies the scanner can see them, runs the scan, and loads the report."
 
-Okay, let's see it in action."
+**[Click Run Full Demo]**
+
+**SHOW:** Full Demo Pipeline — checklist steps lighting up plus the AWS terminal log on the right. Then the four-stage **Scan Pipeline** (Config → AWS → LLM → Reports).
+
+**SAY:**
+
+"You get a live pipeline and terminal output while it works — two public S3 buckets, an IAM user without MFA, security groups with SSH and RDP open to the internet. Thirteen checks run in parallel, so this finishes in about ninety seconds."
+
+**[When complete — scroll overview cards and findings]**
+
+**SHOW:** Asset cards populated (e.g. 8 findings, 5 Critical). Expand one Critical finding — root MFA or a demo S3 bucket. Show raw evidence JSON and remediation CLI.
+
+**SAY:**
+
+"Eight findings — five Critical. Five are the misconfigs I just created; three are real baseline issues on this account — root MFA off, CloudTrail not logging, weak password policy.
+
+Every Critical finding is backed by direct API evidence — for example `AccountMFAEnabled: 0`. The LLM wrote the business impact and fix steps; severity came from the check, not the model.
+
+Scroll to **Agent Performance** — precision on Critical is one hundred percent, and recall hits every known misconfig in our ground truth when the demo is active."
 
 ---
 
-## Part 3 — Level 1 Demo
-**Time: 1:40 – 4:30**
+## Part 3 — Level 2: Multi-Domain
+**Time: 1:35 – 2:35**
 
-**SHOW:** Switch back to the dashboard, Level 1 tab.
-
-**SAY:**
-
-"I'm on the Level 1 tab. Before I run anything, let me explain the setup quickly.
-
-I have two AWS users. `aivar-scanner` has read-only access and runs all the scans. `aivar-admin` has admin access and is only used to create test misconfigurations for the demo. The scanner never needs write permissions — that's an important security boundary.
-
-I'll click **Run Full Demo**. This will create five intentional misconfigurations in my AWS account, verify the scanner can see them, run the full scan, and show the results."
-
-**[Click Run Full Demo button]**
-
-**SHOW:** The pipeline panel. Four steps light up one by one — Create Misconfigs, Verify Resources, Run Scan, Load Report.
+**SHOW:** Click **Multi-Domain** tab. Hero section, then **Run Level 2 Scan**.
 
 **SAY:**
 
-"You can see the four steps running. It's creating two public S3 buckets, one IAM user without MFA, and two security groups with ports 22 and 3389 open to the whole internet. Then it verifies those exist. Then the scan runs.
+"Level 2 adds three more attack surfaces on top of AWS: API endpoints, dependency CVEs via OSV, and secrets regex scanning.
 
-The 13 security checks run in parallel, so this finishes in about 90 seconds instead of taking several minutes."
+Watch the nine-stage pipeline on the left — config, four scan domains, LLM enrichment, deduplication, impact ranking, and reports."
 
-**[Wait for scan to finish. Findings table appears.]**
+**[Click Run Level 2 Scan — let pipeline animate]**
 
-**SHOW:** KPI cards at the top — 8 findings, 5 Critical. Findings table below with all findings listed.
-
-**SAY:**
-
-"Eight findings total. Five Critical, two High, one Medium.
-
-Five of those I just created intentionally. The other three were already there — root MFA is disabled on this account, CloudTrail isn't logging, and there's no password policy. Those are real misconfigurations that exist on most fresh AWS accounts.
-
-Zero false positives on Critical. Every single Critical finding has direct API evidence backing it up."
-
-**[Click on the root MFA finding to expand it]**
-
-**SHOW:** The expanded finding — resource ARN, raw evidence JSON (`AccountMFAEnabled: 0`), business impact text, remediation steps, and a runnable CLI command at the bottom.
+**SHOW:** Steps advance with glowing connectors. Pan the **Live Pipeline** graph on the right (zoom controls if helpful).
 
 **SAY:**
 
-"This is what a finding looks like. You have the resource — in this case the root account. You have the raw evidence from the AWS API — `AccountMFAEnabled` is 0. That's the actual response boto3 got. Then you have the business impact — what can an attacker actually do with this — and a step-by-step fix with a CLI command you can run immediately.
+"The live graph shows data flowing between domains as each stage completes — AWS, API, dependencies, and secrets in one run.
 
-The business impact and the remediation steps were written by the LLM. The severity and whether this finding exists at all — that came from the API call. Those two things are never mixed up."
+When the same issue appears in two domains, deduplication keeps one row. Everything else is ranked by a weighted impact score — secrets and AWS misconfigs float to the top because they're exploitable right now, not just theoretical."
 
-**[Scroll down to Agent Performance section if visible on the page]**
-
-**SHOW:** Agent Performance panel — Precision 100%, Recall 100%, F1 1.00
+**[Scan done — findings table sorted by impact]**
 
 **SAY:**
 
-"The Agent Performance panel shows the accuracy metrics. I have a ground truth file that lists all the known intentional misconfigs. After every scan, the system checks how many of those were found.
-
-Precision is 100% — no false positives on Critical. Recall is 100% — all 6 known misconfigs detected. F1 score is 1.00. These numbers are also saved inside the report JSON, so they're verifiable."
+"You get CVE IDs and fix versions on dependency hits, plus domain-level metrics in Agent Performance — duplicates removed, findings per domain, and domain success rates."
 
 ---
 
-## Part 4 — Level 2 Demo
-**Time: 4:30 – 7:30**
+## Part 4 — Level 3: Continuous SOC
+**Time: 2:35 – 3:35**
 
-**SHOW:** Click the Level 2 tab in the dashboard.
-
-**SAY:**
-
-"Level 2 expands the scanner to four domains. Let me run it."
-
-**[Click Run Level 2 Scan]**
-
-**SHOW:** L2 pipeline — four parallel steps running: AWS, API Endpoints, Dependencies, Secrets.
+**SHOW:** Click **Continuous** tab. Glass SOC hero — schedule panel, control buttons, KPI grid.
 
 **SAY:**
 
-"Four domains run at the same time. AWS infrastructure is the same 13 checks from Level 1. API endpoints — the scanner sends real HTTP requests and checks for things like CORS misconfigurations, missing authentication, no rate limiting, insecure headers. Dependencies — it queries the OSV database for known CVEs in your requirements files. Secrets — twelve regex patterns looking for AWS keys, API tokens, private keys, connection strings.
+"Level 3 turns this into an autonomous security operations view. The dashboard is a live SOC — posture score, trend, open Critical count, SLA breaches, daemon status, F1, compliance, reliability, and resolution rate.
 
-The interesting problem here isn't running the checks. It's what you do with everything afterwards. You end up with findings from four completely different places and you need to sort them by how dangerous they actually are."
-
-**[Scan finishes. Show the findings table sorted by impact score.]**
-
-**SHOW:** Findings table — impact_score column visible, mix of different domain findings, sorted highest to lowest.
-
-**SAY:**
-
-"The findings are ranked by a weighted impact score. The formula is the severity score, plus a bonus for certain high-value checks, multiplied by a domain weight, multiplied by the confidence level.
-
-The domain weights reflect real-world risk. Hardcoded secrets get the highest weight — a leaked credential is exploitable from anywhere, immediately. AWS misconfigs come second. API findings third. CVEs are weighted a bit lower — not because they don't matter, but because a vulnerable package in a requirements file doesn't mean you're actually running that vulnerable code. A public S3 bucket is exploitable right now. A vulnerable dependency might be. That's a meaningful difference when you're deciding what to fix first.
-
-Also — if two different domains find the same underlying issue, you only get one finding in the table, not two. The deduplication uses a fingerprint based on the check ID, resource ID, and severity."
-
-**[Show Agent Performance panel for L2]**
-
-**SHOW:** L2 metrics section — domain success rates, dedup count, findings per domain.
-
-**SAY:**
-
-"The metrics for Level 2 show which domains succeeded, how many duplicates were removed, and how findings are distributed across the attack surface."
-
----
-
-## Part 5 — Level 3 Demo
-**Time: 7:30 – 10:30**
-
-**SHOW:** Click the Continuous tab (Level 3).
-
-**SAY:**
-
-"Level 3 is where it becomes a proper autonomous service. It runs on a schedule, remembers findings across scans, tracks whether they get fixed, and escalates Critical issues to Slack immediately.
-
-Let me run it once to show you what the first scan looks like."
+Up here is the **Scan Schedule**: default every six hours, or a custom interval in hours or minutes. I'll run once manually to show the pipeline."
 
 **[Click Run L3 Once]**
 
-**SHOW:** The 7-stage L3 pipeline lighting up: Scans → DB → Dedup → Lifecycle → SLA → Slack → Trend.
+**SHOW:** **Security Scan Pipeline** hero animates. **Autonomous Pipeline** seven stages light up (Scans → DB → Dedup → Lifecycle → SLA → Slack → Trend). KPI cards update.
 
 **SAY:**
 
-"The pipeline now has seven stages. The first three are the same as Level 2 — run the scan, save to the database, deduplicate. Then four new things happen.
+"Seven stages beyond Level 2. Findings persist in SQLite with fingerprints — first sighting is **opened**, repeat scans **updated**, missing for three consecutive runs **resolved**.
 
-Stage 4 is lifecycle management. Every finding gets a fingerprint. First time the fingerprint appears, the finding is marked as 'opened'. Same fingerprint on the next scan — it's 'updated'. If something was resolved and comes back — it's 're-opened'. This gives you a full history per finding, not just per scan.
+Critical findings get a twenty-four-hour SLA. New Criticals and breaches can post to Slack once per finding — no alert fatigue.
 
-Stage 5 is SLA tracking. Critical findings get a 24-hour deadline. High severity gets 72 hours. If the finding isn't resolved in that window, the system sends a Slack alert and the posture score penalty increases.
+Posture score drops when Criticals are open — that's intentional, not a bug. After a second run, trend moves from Baseline to Stable or Improving as things get fixed."
 
-Stage 6 is Slack escalation. New Critical findings send an alert immediately. But only once per finding — not on every scan. Alert fatigue is a real problem. If your security system sends the same alert 10 times, people start ignoring it.
-
-Stage 7 writes the posture score and trend report."
-
-**[Scan finishes. Show the KPI cards — posture score is very low, trend says Baseline.]**
-
-**SHOW:** L3 KPI cards — Posture Score showing 0/100 or a low number, Trend card says "Baseline · 0/100".
+**SHOW:** Briefly scroll **Posture over time** chart, **Activity feed**, **Critical findings** cards, and the lifecycle findings table (first_seen / last_seen / status).
 
 **SAY:**
 
-"Posture score is 0 out of 100. That's not a bug — that's correct. We have seven open Critical findings. Each Critical finding subtracts 25 points. Seven times 25 is 175. The score floors at zero.
-
-The Trend card says 'Baseline'. That means this is the first scan, and we need at least two scans to calculate a direction. Let me run it again."
-
-**[Click Run L3 Once again. Wait for it to finish.]**
-
-**SHOW:** After the second scan completes, the Trend card now shows "Stable" or a delta.
-
-**SAY:**
-
-"On the second scan, the lifecycle manager recognizes all the same fingerprints. Nothing is new — everything is 'updated'. The posture score is the same. The trend direction is now 'Stable' because the score didn't change significantly.
-
-If I fix some of those Critical findings in AWS and run again, the score would go up and the trend would change to 'Improving'. That's the number teams would track over time."
-
-**[Scroll to the findings lifecycle table]**
-
-**SHOW:** L3 findings table — status column shows "updated" for all rows. first_seen and last_seen are different.
-
-**SAY:**
-
-"Look at the table. Every finding shows 'updated'. The first_seen timestamp is from the first run. The last_seen timestamp is from the second run. There's one row per misconfiguration in the database — not one row per scan. That's the whole point of persistence.
-
-The auto-resolution logic is worth mentioning too. If a finding disappears from three consecutive scans, it automatically gets marked as resolved. Three scans, not one — because a single scan failure or a temporary API error shouldn't mark a real security problem as fixed."
-
-**[Scroll to Scan Health section]**
-
-**SHOW:** Scan Health table — all checks listed with success/error status.
-
-**SAY:**
-
-"The scan health table is one of my favorite parts of Level 3. Every check that was attempted shows here — either success or error with the exact error message. If a check hits a 403 permission denied, you see it explicitly.
-
-This means you can never get a false clean report because a check failed quietly. That's a failure mode in a lot of security tools — they just skip the check and you think nothing's wrong. This system makes every failure visible."
+"To go fully hands-off, pick a schedule and click **Start Continuous Scans**. The daemon runs L3 on that interval and keeps this view updated."
 
 ---
 
-## Part 6 — Verification
-**Time: 10:30 – 11:30**
+## Part 5 — Close
+**Time: 3:35 – 4:00**
 
-**SHOW:** Switch to the terminal. Clear the screen.
-
-**SAY:**
-
-"Let me run the acceptance tests for all three levels."
-
-**[Run: `python scripts\verify_acceptance.py`]**
-
-**SHOW:** Terminal output ending with: `ALL ACCEPTANCE CRITERIA PASSED`
+**SHOW:** Stay on Level 3 SOC view with KPIs visible, or flash terminal with one line: `ALL ACCEPTANCE CRITERIA PASSED`.
 
 **SAY:**
 
-"Level 1 — all seven criteria pass."
+"All three levels are covered by automated acceptance scripts — Level 1, multi-domain Level 2, and continuous Level 3 with lifecycle, SLA, audit trail, and scan health. I ran them against this build; everything passes.
 
-**[Run: `python scripts\verify_acceptance_l2.py`]**
-
-**SHOW:** Terminal output ending with: `ALL LEVEL 2 ACCEPTANCE CRITERIA PASSED`
-
-**SAY:**
-
-"Level 2 — passes."
-
-**[Run: `python scripts\verify_acceptance_l3.py`]**
-
-**SHOW:** Terminal output — 11 criteria with PASS next to each, then `ALL LEVEL 3 ACCEPTANCE CRITERIA PASSED`
-
-**SAY:**
-
-"Level 3 — eleven criteria. All pass. This includes the lifecycle state machine, cross-run deduplication, SLA breach detection, audit trail, trend reporting, and scan health.
-
-These scripts test the actual behavior — they're not just checking if imports work. They create real database entries and verify the state transitions."
+Repo: github.com/max-mani/offensive-security-agent. Thanks for watching."
 
 ---
 
-## Part 7 — Close
-**Time: 11:30 – 12:00**
+## Timing cheat sheet
 
-**SHOW:** Go back to the dashboard. Stay on the Level 3 tab. The posture score and trend are visible.
-
-**SAY:**
-
-"To wrap up — the whole project is built around one idea: separate detection from explanation. The API calls decide what the findings are. The LLM explains them and tells you how to fix them. That separation is what makes the Critical severity findings trustworthy.
-
-All three levels are complete and verified on a real AWS account. The repo is at github.com/max-mani/offensive-security-agent.
-
-Thanks for watching."
+| Section | Duration | Cumulative |
+|---------|----------|------------|
+| Intro | 0:25 | 0:25 |
+| Level 1 | 1:10 | 1:35 |
+| Level 2 | 1:00 | 2:35 |
+| Level 3 | 1:00 | 3:35 |
+| Close | 0:25 | 4:00 |
 
 ---
 
-## Before you record — checklist
+## Recording tips (4-minute cut)
 
-Go through this before hitting record:
+**Do show:** Run Full Demo once, one expanded finding, L2 live pipeline graph for a few seconds, L3 KPI row + schedule panel + one L3 run.
 
-| Task | Done? |
-|------|-------|
-| Dashboard running at `http://127.0.0.1:8080` | |
-| Terminal open in project directory, venv active | |
-| VS Code open with `agent/intelligence.py` ready to show | |
-| Level 3 data reset (Continuous tab → Reset L3 Data) | |
-| 5 test misconfigs exist in AWS (so Run Full Demo takes ~90s not 5min) | |
-| Browser zoom at 100% — table text is readable | |
-| Screen is 1920×1080 | |
-| Mic tested, no background noise | |
-| Notifications turned off | |
+**Do not show on camera:** Full acceptance test runs (mention only), line-by-line reading of the findings table, long waits in silence — narrate over scan progress instead.
+
+**If you're running long:** Shorten Level 2 graph pan; skip L3 activity feed scroll. **If you're short:** Expand root MFA evidence for ten extra seconds.
+
+**If Groq rate-limits:** Say "template enrichment kicks in when the LLM quota is hit — findings and severity are unchanged."
+
+**Talk like a colleague:** short sentences, point at UI labels that match the script (`Run Full Demo`, `Multi-Domain`, `Start Continuous Scans`).
 
 ---
 
-## A few tips for when you're recording
+## Quick verification (run before recording, not on camera)
 
-**Don't rush when the scan is running.** It takes 90 seconds. Just say "this takes about 90 seconds, all 13 checks are running in parallel" and let it run. Silence while something is working looks natural.
+```powershell
+python scripts/verify_acceptance.py
+python scripts/verify_acceptance_l2.py
+python scripts/verify_acceptance_l3.py
+python scripts/verify_dashboard_buttons.py
+```
 
-**Don't read the findings table out loud line by line.** Point to the numbers — "8 findings, 5 Critical" — and move on. The person watching can pause and read. If you read every row, it gets boring fast.
+Optional full demo smoke test:
 
-**The two places to slow down and be clear:**
-1. When you show the `DETERMINISTIC_EVIDENCE` code — this is the key architectural decision and it's worth 20-30 extra seconds of explanation.
-2. When you explain the lifecycle states during Level 3 — opened, updated, resolved, re-opened. Say each state with a one-sentence explanation.
-
-**Talk like you're explaining to a colleague, not presenting to a committee.** Simple words, direct sentences. If you make a small mistake, just continue — don't restart the whole recording for a minor stumble.
+```powershell
+python scripts/run_full_test_and_cleanup.py
+```

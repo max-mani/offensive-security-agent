@@ -4,10 +4,13 @@ import os
 import sys
 from pathlib import Path
 
+import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from typing import Literal, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -27,6 +30,12 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+class L3DaemonStartBody(BaseModel):
+    schedule_mode: Literal["default", "custom"] = "default"
+    interval_hours: Optional[float] = Field(None, ge=0.25, le=168)
+    interval_minutes: Optional[float] = Field(None, ge=15, le=10080)
 
 
 def _any_job_running() -> bool:
@@ -51,6 +60,49 @@ def _level3_deps_ok() -> bool:
 @app.get("/")
 async def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _lookup_isp(ip: str) -> str:
+    if ip in ("unknown", "127.0.0.1", "::1", "localhost"):
+        return "Local session"
+    try:
+        resp = requests.get(f"https://ipwho.is/{ip}", timeout=4)
+        if resp.ok:
+            data = resp.json()
+            if data.get("success"):
+                conn = data.get("connection") or {}
+                return conn.get("isp") or conn.get("org") or "Unknown provider"
+    except requests.RequestException:
+        pass
+    try:
+        resp = requests.get(f"https://ipapi.co/{ip}/json/", timeout=4)
+        if resp.ok:
+            data = resp.json()
+            return data.get("org") or data.get("asn") or "Unknown provider"
+    except requests.RequestException:
+        pass
+    return "Unknown provider"
+
+
+@app.get("/api/client-session")
+async def client_session(request: Request):
+    """Return the dashboard client's public IP and ISP for session display."""
+    ip = _client_ip(request)
+    isp = _lookup_isp(ip)
+    return {
+        "ip": ip,
+        "isp": isp,
+        "label": f"{ip} · {isp}",
+    }
 
 
 def _level2_deps_ok() -> bool:
@@ -254,7 +306,10 @@ async def l3_run_once(config: str | None = Query(None)):
 
 
 @app.post("/api/l3/daemon/start")
-async def l3_daemon_start(config: str | None = Query(None)):
+async def l3_daemon_start(
+    body: L3DaemonStartBody | None = None,
+    config: str | None = Query(None),
+):
     if scan_service.is_running() or job_service.is_busy():
         raise HTTPException(status_code=409, detail="Another operation is already running.")
     if daemon_service.is_daemon_running():
@@ -262,7 +317,13 @@ async def l3_daemon_start(config: str | None = Query(None)):
     if not _level3_deps_ok():
         raise HTTPException(status_code=400, detail="Level 3 packages missing.")
     config_path = config or "checklist_l3.yaml"
-    if not daemon_service.start_daemon(config_path):
+    opts = body or L3DaemonStartBody()
+    if not daemon_service.start_daemon(
+        config_path,
+        schedule_mode=opts.schedule_mode,
+        interval_hours=opts.interval_hours,
+        interval_minutes=opts.interval_minutes,
+    ):
         raise HTTPException(status_code=409, detail="Failed to start daemon.")
     return {"message": "Daemon started", "status": daemon_service.get_status()}
 

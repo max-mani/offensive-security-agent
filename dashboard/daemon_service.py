@@ -31,6 +31,84 @@ _log_tail: deque[str] = deque(maxlen=200)
 _scheduler: ScanScheduler | None = None
 _orchestrator: OrchestratorL3 | None = None
 _config_path: str = "checklist_l3.yaml"
+DEFAULT_SCHEDULE_HOURS = 6.0
+_schedule_info: dict = {
+    "mode": "default",
+    "interval_hours": DEFAULT_SCHEDULE_HOURS,
+    "interval_minutes": None,
+    "label": f"Every {int(DEFAULT_SCHEDULE_HOURS)} hours (default)",
+}
+
+
+def _format_schedule_label(mode: str, hours: float | None, minutes: float | None) -> str:
+    if mode == "default":
+        return f"Every {int(DEFAULT_SCHEDULE_HOURS)} hours (default)"
+    if minutes and minutes > 0:
+        if minutes >= 60 and minutes % 60 == 0:
+            return f"Every {int(minutes / 60)} hours (custom)"
+        return f"Every {int(minutes)} minutes (custom)"
+    h = hours if hours and hours > 0 else DEFAULT_SCHEDULE_HOURS
+    if h == int(h):
+        return f"Every {int(h)} hours (custom)"
+    return f"Every {h:g} hours (custom)"
+
+
+def _build_schedule_config(
+    schedule_mode: str = "default",
+    interval_hours: float | None = None,
+    interval_minutes: float | None = None,
+) -> tuple:
+    """Return (ScheduleConfig, schedule_info dict)."""
+    from models.config import ScheduleConfig
+
+    mode = schedule_mode if schedule_mode in ("default", "custom") else "default"
+    if mode == "default":
+        cfg = ScheduleConfig(
+            mode="interval",
+            interval_hours=DEFAULT_SCHEDULE_HOURS,
+            interval_minutes=None,
+            run_on_start=True,
+        )
+        info = {
+            "mode": "default",
+            "interval_hours": DEFAULT_SCHEDULE_HOURS,
+            "interval_minutes": None,
+            "label": _format_schedule_label("default", DEFAULT_SCHEDULE_HOURS, None),
+        }
+        return cfg, info
+
+    use_minutes = interval_minutes is not None and interval_minutes > 0
+    if use_minutes:
+        mins = max(15.0, min(float(interval_minutes), 10080.0))
+        cfg = ScheduleConfig(
+            mode="interval",
+            interval_hours=DEFAULT_SCHEDULE_HOURS,
+            interval_minutes=mins,
+            run_on_start=True,
+        )
+        info = {
+            "mode": "custom",
+            "interval_hours": None,
+            "interval_minutes": mins,
+            "label": _format_schedule_label("custom", None, mins),
+        }
+        return cfg, info
+
+    hours = float(interval_hours) if interval_hours and interval_hours > 0 else DEFAULT_SCHEDULE_HOURS
+    hours = max(0.25, min(hours, 168.0))
+    cfg = ScheduleConfig(
+        mode="interval",
+        interval_hours=hours,
+        interval_minutes=None,
+        run_on_start=True,
+    )
+    info = {
+        "mode": "custom",
+        "interval_hours": hours,
+        "interval_minutes": None,
+        "label": _format_schedule_label("custom", hours, None),
+    }
+    return cfg, info
 
 
 class _L3LogHandler(logging.Handler):
@@ -72,6 +150,8 @@ def get_status() -> dict:
             "log_tail": list(_log_tail),
             "next_run_time": next_run,
             "config_path": _config_path,
+            "schedule": dict(_schedule_info),
+            "default_interval_hours": DEFAULT_SCHEDULE_HOURS,
         }
 
 
@@ -139,8 +219,13 @@ def run_once(config_path: str = "checklist_l3.yaml") -> bool:
     return True
 
 
-def start_daemon(config_path: str = "checklist_l3.yaml") -> bool:
-    global _daemon_state, _scheduler, _orchestrator, _config_path
+def start_daemon(
+    config_path: str = "checklist_l3.yaml",
+    schedule_mode: str = "default",
+    interval_hours: float | None = None,
+    interval_minutes: float | None = None,
+) -> bool:
+    global _daemon_state, _scheduler, _orchestrator, _config_path, _schedule_info
 
     with _lock:
         if _daemon_state == "running":
@@ -158,7 +243,9 @@ def start_daemon(config_path: str = "checklist_l3.yaml") -> bool:
         init_db()
 
         orch = OrchestratorL3(config, llm)
-        l3_cfg = config.level3
+        schedule_cfg, schedule_meta = _build_schedule_config(
+            schedule_mode, interval_hours, interval_minutes
+        )
 
         def scheduled_run():
             global _l3_state, _finished_at, _error, _last_result, _started_at
@@ -182,7 +269,7 @@ def start_daemon(config_path: str = "checklist_l3.yaml") -> bool:
                     _error = str(e)
                 _append_log(f"Scheduled scan failed: {e}")
 
-        scheduler = ScanScheduler(scheduled_run, l3_cfg)
+        scheduler = ScanScheduler(scheduled_run, schedule_cfg)
         scheduler.start()
 
         with _lock:
@@ -190,8 +277,9 @@ def start_daemon(config_path: str = "checklist_l3.yaml") -> bool:
             _orchestrator = orch
             _daemon_state = "running"
             _config_path = config_path
+            _schedule_info = schedule_meta
 
-        _append_log("Daemon started — scans will run on schedule")
+        _append_log(f"Daemon started — {_schedule_info['label']}")
         return True
     except Exception as e:
         logger.exception("Failed to start daemon")

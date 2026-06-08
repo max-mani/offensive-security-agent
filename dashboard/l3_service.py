@@ -20,15 +20,12 @@ def ensure_db():
 
 def _load_agent_metrics_from_reports() -> dict | None:
     """Load metrics from the newest report JSON that includes a metrics block."""
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    for path in sorted(REPORTS_DIR.glob("findings_report_*.json"), reverse=True):
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            metrics = data.get("metrics")
-            if metrics:
-                return metrics
-        except (json.JSONDecodeError, OSError):
-            continue
+    from dashboard.report_store import load_report, list_reports
+
+    for summary in list_reports():
+        report = load_report(summary.filename)
+        if report and report.get("metrics"):
+            return report["metrics"]
     return None
 
 

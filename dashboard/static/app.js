@@ -51,6 +51,29 @@ const els = {
   emptyState: document.getElementById("emptyState"),
   emptyStateTitle: document.getElementById("emptyStateTitle"),
   emptyStateDesc: document.getElementById("emptyStateDesc"),
+  kpiGridRow: document.getElementById("kpiGridRow"),
+  themeToggle: document.getElementById("themeToggle"),
+  runScanL1BtnSecondary: document.getElementById("runScanL1BtnSecondary"),
+  l1CheckBreakdown: document.getElementById("l1CheckBreakdown"),
+  l1AssetTotal: document.getElementById("l1AssetTotal"),
+  l1AssetCritical: document.getElementById("l1AssetCritical"),
+  l1AssetResources: document.getElementById("l1AssetResources"),
+  l1AssetHealth: document.getElementById("l1AssetHealth"),
+  l1AssetChecksSub: document.getElementById("l1AssetChecksSub"),
+  l1AssetHighSub: document.getElementById("l1AssetHighSub"),
+  l1AssetRegionSub: document.getElementById("l1AssetRegionSub"),
+  l1AssetDurationSub: document.getElementById("l1AssetDurationSub"),
+  l1ReportsGenerated: document.getElementById("l1ReportsGenerated"),
+  l1ReportsProcessed: document.getElementById("l1ReportsProcessed"),
+  l1ReportsEnriched: document.getElementById("l1ReportsEnriched"),
+  l1ReportsPending: document.getElementById("l1ReportsPending"),
+  l1IssuesTotalCount: document.getElementById("l1IssuesTotalCount"),
+  l1PctLow: document.getElementById("l1PctLow"),
+  l1PctMedium: document.getElementById("l1PctMedium"),
+  l1PctCritical: document.getElementById("l1PctCritical"),
+  l1BarLow: document.getElementById("l1BarLow"),
+  l1BarMedium: document.getElementById("l1BarMedium"),
+  l1BarCritical: document.getElementById("l1BarCritical"),
   dashboardContent: document.getElementById("dashboardContent"),
   runScanL1Btn: document.getElementById("runScanL1Btn"),
   runScanL2Btn: document.getElementById("runScanL2Btn"),
@@ -58,8 +81,12 @@ const els = {
   scanStatusBadge: document.getElementById("scanStatusBadge"),
   reportList: document.getElementById("reportList"),
   reportHistoryPanel: document.getElementById("reportHistoryPanel"),
+  reportHistoryToggle: document.getElementById("reportHistoryToggle"),
+  reportHistoryBody: document.getElementById("reportHistoryBody"),
+  reportHistoryChevron: document.getElementById("reportHistoryChevron"),
   reportHistoryTitle: document.getElementById("reportHistoryTitle"),
   reportHistoryDesc: document.getElementById("reportHistoryDesc"),
+  exportReportPdfBtn: document.getElementById("exportReportPdfBtn"),
   clearReportsBtn: document.getElementById("clearReportsBtn"),
   findingsBody: document.getElementById("findingsBody"),
   findingsTableHead: document.getElementById("findingsTableHead"),
@@ -93,6 +120,8 @@ const els = {
   logOutput: document.getElementById("logOutput"),
   l1DemoPipelinePanel: document.getElementById("l1DemoPipelinePanel"),
   l1DemoPipelineStatus: document.getElementById("l1DemoPipelineStatus"),
+  demoPipelineChecklist: document.getElementById("demoPipelineChecklist"),
+  l1DemoPipelineLog: document.getElementById("l1DemoPipelineLog"),
   l1ScanPipelinePanel: document.getElementById("l1ScanPipelinePanel"),
   l1ScanPipelineStatus: document.getElementById("l1ScanPipelineStatus"),
   l1ScanLog: document.getElementById("l1ScanLog"),
@@ -106,14 +135,7 @@ const els = {
   metricsHeadline: document.getElementById("metricsHeadline"),
   metricsEmpty: document.getElementById("metricsEmpty"),
   metricsContent: document.getElementById("metricsContent"),
-  metricPrecision: document.getElementById("metricPrecision"),
-  metricPrecisionBadge: document.getElementById("metricPrecisionBadge"),
-  metricRecall: document.getElementById("metricRecall"),
-  metricRecallBadge: document.getElementById("metricRecallBadge"),
-  metricF1: document.getElementById("metricF1"),
-  metricF1Badge: document.getElementById("metricF1Badge"),
-  metricConfidence: document.getElementById("metricConfidence"),
-  metricConfidenceBadge: document.getElementById("metricConfidenceBadge"),
+  metricsChartHost: document.getElementById("metricsChartHost"),
   metricsDetectionDetail: document.getElementById("metricsDetectionDetail"),
   metricsSpeedDetail: document.getElementById("metricsSpeedDetail"),
   metricsCoverageDetail: document.getElementById("metricsCoverageDetail"),
@@ -155,7 +177,34 @@ const els = {
   l3MetricResolution: document.getElementById("l3MetricResolution"),
   l3PipelineStatus: document.getElementById("l3PipelineStatus"),
   resetL3Btn: document.getElementById("resetL3Btn"),
+  l3PostureChartHost: document.getElementById("l3PostureChartHost"),
+  l3ActivityFeed: document.getElementById("l3ActivityFeed"),
+  l3PostureCenterGrid: document.getElementById("l3PostureCenterGrid"),
+  l3CriticalFindingsList: document.getElementById("l3CriticalFindingsList"),
+  l3ScanPipelineHero: document.getElementById("l3ScanPipelineHero"),
+  l3ScanPipelineBadge: document.getElementById("l3ScanPipelineBadge"),
+  l3ScanStatusBadge: document.getElementById("l3ScanStatusBadge"),
+  l3AgentHealthDot: document.getElementById("l3AgentHealthDot"),
+  l3AgentHealthLabel: document.getElementById("l3AgentHealthLabel"),
+  l3MetaDuration: document.getElementById("l3MetaDuration"),
+  l3MetaSuccessRate: document.getElementById("l3MetaSuccessRate"),
+  l3PostureProgress: document.getElementById("l3PostureProgress"),
+  l3F1Progress: document.getElementById("l3F1Progress"),
+  l3SlaComplianceProgress: document.getElementById("l3SlaComplianceProgress"),
+  l3ReliabilityProgress: document.getElementById("l3ReliabilityProgress"),
+  l3ResolutionProgress: document.getElementById("l3ResolutionProgress"),
+  l3LiveBadge: document.getElementById("l3LiveBadge"),
+  l3SchedulePanel: document.getElementById("l3SchedulePanel"),
+  l3ScheduleCustomFields: document.getElementById("l3ScheduleCustomFields"),
+  l3CustomIntervalHours: document.getElementById("l3CustomIntervalHours"),
+  l3CustomIntervalMinutes: document.getElementById("l3CustomIntervalMinutes"),
+  l3ScheduleActiveLabel: document.getElementById("l3ScheduleActiveLabel"),
+  l3ScheduleActiveBadge: document.getElementById("l3ScheduleActiveBadge"),
+  l3MetaSchedule: document.getElementById("l3MetaSchedule"),
 };
+
+const L3_SCHEDULE_STORAGE_KEY = "l3SchedulePrefs";
+const L3_DEFAULT_INTERVAL_HOURS = 6;
 
 const L3_PIPELINE_ORDER = [
   { id: "l3StepScans", num: 1, name: "Continuous Scans" },
@@ -177,8 +226,199 @@ const L3_PHASE_TO_STEP = {
   trend: "l3StepTrend",
 };
 
+const L3_SCAN_FLOW_STAGES = [
+  { id: "infra", short: "1", label: "Infrastructure Scan", log: "domain_aws" },
+  { id: "iam", short: "2", label: "IAM Audit", log: "iam_" },
+  { id: "s3", short: "3", label: "S3 Audit", log: "s3_" },
+  { id: "api", short: "4", label: "API Security", log: "domain_api" },
+  { id: "deps", short: "5", label: "Dependency CVEs", log: "domain_deps" },
+  { id: "secrets", short: "6", label: "Secret Detection", log: "domain_secrets" },
+  { id: "risk", short: "7", label: "Risk Correlation", log: "dedup" },
+  { id: "remediation", short: "8", label: "Remediation Engine", log: "reports" },
+];
+
+const L3_POSTURE_WIDGETS = [
+  { id: "s3", title: "Public S3 Buckets", match: (f) => /^s3_public/.test(f.check_id || "") },
+  { id: "sg", title: "Exposed Security Groups", match: (f) => /^sg_open/.test(f.check_id || "") },
+  { id: "mfa", title: "MFA Disabled Users", match: (f) => /mfa/.test(f.check_id || "") && f.severity !== "info" },
+  { id: "encrypt", title: "Unencrypted Resources", match: (f) => /unencrypted|encryption_disabled/.test(f.check_id || "") },
+  { id: "cve", title: "High CVSS Vulnerabilities", match: (f) => f.check_id === "dependency_cve" },
+  { id: "secrets", title: "Secrets Detected", match: (f) => f.check_id === "secrets_scan" },
+];
+
 let l3PipelineStepIndex = 0;
 let scanPipelineStepIndex = { l1: 0, l2: 0 };
+
+const L2_STEP_MIN_MS = 2000;
+const L2_STEP_MAX_MS = 5000;
+
+let l2DisplayTimeline = {
+  displayIdx: 0,
+  backendIdx: 0,
+  stageStartedAt: 0,
+  stageDuration: 3000,
+};
+
+let l2PipelineViz = null;
+let l2TimelineTimer = null;
+let l2Flushing = false;
+let lastL2ScanSteps = null;
+let prevL2DisplayIdx = -1;
+
+function randomL2StageDuration() {
+  return L2_STEP_MIN_MS + Math.random() * (L2_STEP_MAX_MS - L2_STEP_MIN_MS);
+}
+
+function resetL2DisplayTimeline() {
+  l2DisplayTimeline = {
+    displayIdx: 0,
+    backendIdx: 0,
+    stageStartedAt: Date.now(),
+    stageDuration: randomL2StageDuration(),
+  };
+  l2Flushing = false;
+  prevL2DisplayIdx = -1;
+}
+
+function inferScanPipelineBackendIndex(level, steps, scanRunning) {
+  const order = getScanPipelineOrder(level);
+  let idx = 0;
+  if (!steps?.length) return 0;
+  if (scanRunning) {
+    for (let i = 0; i < order.length; i++) {
+      const status = scanPhaseStatus(order[i], steps, level);
+      if (status === "running" || status === "failed") return i;
+      if (status === "completed") idx = i;
+    }
+    return idx;
+  }
+  for (let i = 0; i < order.length; i++) {
+    if (scanPhaseStatus(order[i], steps, level) !== "pending") idx = i;
+  }
+  return idx;
+}
+
+function tickL2DisplayTimeline(backendIdx, scanRunning) {
+  const t = l2DisplayTimeline;
+  t.backendIdx = backendIdx;
+  const now = Date.now();
+  const elapsed = now - t.stageStartedAt;
+  if (elapsed < t.stageDuration) return t.displayIdx;
+
+  if (l2Flushing && t.displayIdx < L2_PIPELINE_ORDER.length - 1) {
+    t.displayIdx += 1;
+    t.stageStartedAt = now;
+    t.stageDuration = randomL2StageDuration();
+  } else if (scanRunning && t.displayIdx < backendIdx) {
+    t.displayIdx += 1;
+    t.stageStartedAt = now;
+    t.stageDuration = randomL2StageDuration();
+  }
+  return t.displayIdx;
+}
+
+function getL2StepStatuses(steps, displayIdx, scanRunning) {
+  return L2_PIPELINE_ORDER.map((phase, i) => {
+    const st = steps?.length ? scanPhaseStatus(phase, steps, 2) : "pending";
+    if (i < displayIdx) return st === "failed" ? "failed" : "completed";
+    if (i === displayIdx) {
+      if (scanRunning || l2Flushing) return st === "failed" ? "failed" : "running";
+      return st === "failed" ? "failed" : st === "completed" ? "completed" : "pending";
+    }
+    return "pending";
+  });
+}
+
+function ensureL2PipelineViz() {
+  if (l2PipelineViz) return l2PipelineViz;
+  const host = document.getElementById("l2PipelineVizHost");
+  if (!host || !window.L2PipelineViz) return null;
+  l2PipelineViz = new window.L2PipelineViz(host);
+  document.getElementById("l2VizZoomIn")?.addEventListener("click", () => l2PipelineViz.zoomIn());
+  document.getElementById("l2VizZoomOut")?.addEventListener("click", () => l2PipelineViz.zoomOut());
+  document.getElementById("l2VizReset")?.addEventListener("click", () => l2PipelineViz.resetView());
+  return l2PipelineViz;
+}
+
+function stopL2TimelineTimer() {
+  if (l2TimelineTimer) {
+    clearInterval(l2TimelineTimer);
+    l2TimelineTimer = null;
+  }
+}
+
+function startL2TimelineTimer() {
+  if (l2TimelineTimer) return;
+  l2TimelineTimer = setInterval(() => {
+    if (!lastL2ScanSteps?.length) return;
+    const scanRunning = !l2Flushing && activeMode === "scan" && activeScanLevel >= 2;
+    const backendIdx = inferScanPipelineBackendIndex(2, lastL2ScanSteps, scanRunning || l2Flushing);
+    const prev = l2DisplayTimeline.displayIdx;
+    tickL2DisplayTimeline(backendIdx, scanRunning);
+    if (l2DisplayTimeline.displayIdx !== prev || l2Flushing) {
+      renderLevelScanPipeline(2, lastL2ScanSteps, "", scanRunning || l2Flushing);
+    }
+    if (l2Flushing && l2DisplayTimeline.displayIdx >= L2_PIPELINE_ORDER.length - 1) {
+      l2Flushing = false;
+      stopL2TimelineTimer();
+      finalizeL2PipelineUI(lastL2ScanSteps);
+    }
+  }, 180);
+}
+
+function finalizeL2PipelineUI(steps) {
+  const order = L2_PIPELINE_ORDER;
+  order.forEach((step) => {
+    const el = document.getElementById(step.id);
+    if (el) {
+      el.classList.remove("l3-step-active", "l3-step-pending", "l3-step-failed");
+      el.classList.add("l3-step-done");
+    }
+  });
+  ensureL2PipelineViz()?.update(8, getL2StepStatuses(steps, 8, false), false);
+  const ui = getLevelScanUi(2);
+  if (ui.status) {
+    ui.status.classList.add("hidden");
+    ui.status.textContent = "";
+  }
+  if (ui.log) ui.log.classList.add("hidden");
+}
+
+function resetL2PipelineFlowViz() {
+  resetL2DisplayTimeline();
+  lastL2ScanSteps = null;
+  stopL2TimelineTimer();
+  const panel = document.getElementById("l2ScanPipelinePanel");
+  if (panel) {
+    panel.dataset.l2Stage = "0";
+    panel.dataset.l2Scanning = "false";
+  }
+  ensureL2PipelineViz()?.reset();
+}
+
+function updateL2PipelineFlowViz(displayIdx, steps, scanRunning) {
+  const panel = document.getElementById("l2ScanPipelinePanel");
+  if (panel) {
+    panel.dataset.l2Stage = String(displayIdx);
+    panel.dataset.l2Scanning = (scanRunning || l2Flushing) ? "true" : "false";
+    panel.style.setProperty("--l2-progress", String(displayIdx / (L2_PIPELINE_ORDER.length - 1)));
+  }
+  ensureL2PipelineViz()?.update(
+    displayIdx,
+    getL2StepStatuses(steps, displayIdx, scanRunning || l2Flushing),
+    scanRunning || l2Flushing
+  );
+
+  if (displayIdx !== prevL2DisplayIdx) {
+    const stepEl = document.getElementById(L2_PIPELINE_ORDER[displayIdx]?.id);
+    if (stepEl) {
+      stepEl.classList.remove("l2-step-enter");
+      void stepEl.offsetWidth;
+      stepEl.classList.add("l2-step-enter");
+    }
+    prevL2DisplayIdx = displayIdx;
+  }
+}
 let fullDemoPipelineStepIndex = 0;
 
 const FULL_DEMO_PIPELINE_ORDER = [
@@ -187,6 +427,323 @@ const FULL_DEMO_PIPELINE_ORDER = [
   { id: "demoStepScan", stepId: "demo_scan", num: 3, name: "Run Security Scan", metricId: "demoMetricScan" },
   { id: "demoStepDone", stepId: "demo_done", num: 4, name: "Load Findings", metricId: "demoMetricDone" },
 ];
+
+const L1_TRIAL_CONTAINERS = {
+  config: "l1TrialConfig",
+  aws: "l1TrialAws",
+  llm: "l1TrialLlm",
+  reports: "l1TrialReports",
+};
+
+const L1_CHECK_CATEGORIES = ["IAM", "S3", "EC2", "CloudTrail"];
+
+const L1_PIE_COLORS = {
+  IAM: "#8957e5",
+  S3: "#2dd4bf",
+  EC2: "#f59e0b",
+  CloudTrail: "#58a6ff",
+  Other: "#71717a",
+};
+
+// ─── Theme ───────────────────────────────────────────────────────────────────
+
+function initTheme() {
+  const saved = localStorage.getItem("theme");
+  const isDark = saved !== "light";
+  document.documentElement.classList.toggle("dark", isDark);
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle("dark");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+}
+
+// ─── L1 empty state ──────────────────────────────────────────────────────────
+
+function showEmptyStateForLevel(level) {
+  els.dashboardContent.classList.add("hidden");
+  if (level === 1) {
+    els.emptyState?.classList.add("hidden");
+    resetL1Overview();
+  } else {
+    els.emptyState?.classList.remove("hidden");
+    const state = EMPTY_STATE[level] || EMPTY_STATE[2];
+    els.emptyStateTitle.textContent = state.title;
+    els.emptyStateDesc.innerHTML = state.desc;
+  }
+}
+
+function hideEmptyStateForLevel(level) {
+  if (level !== 1) els.emptyState?.classList.add("hidden");
+}
+
+function categoryForCheck(checkId) {
+  const id = (checkId || "").toLowerCase();
+  if (id.includes("cloudtrail")) return "CloudTrail";
+  if (id.includes("s3")) return "S3";
+  if (id.includes("ec2") || id.includes("security_group") || id.includes("ssh") || id.includes("rdp")) {
+    return "EC2";
+  }
+  if (id.includes("iam") || id.includes("mfa") || id.includes("password") || id.includes("root")) {
+    return "IAM";
+  }
+  return "Other";
+}
+
+function renderSegmentedBar(containerId, progress) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const segments = 24;
+  const colors = ["bg-violet-500", "bg-teal-400", "bg-orange-400"];
+  const empty = "bg-zinc-300 dark:bg-zinc-700";
+  const clamped = Math.max(0, Math.min(1, progress));
+  el.innerHTML = Array.from({ length: segments }, (_, i) => {
+    const filled = (i + 1) / segments <= clamped;
+    const color = filled ? colors[i % colors.length] : empty;
+    return `<span class="l1-seg-bar ${color}"></span>`;
+  }).join("");
+}
+
+function resetL1PipelineTrials() {
+  Object.values(L1_TRIAL_CONTAINERS).forEach((id) => renderSegmentedBar(id, 0));
+}
+
+function updateL1PipelineTrials(level, steps, scanRunning) {
+  if (level !== 1) return;
+  const order = getScanPipelineOrder(1);
+  order.forEach((phase) => {
+    const key = phase.id.replace("l1Step", "").toLowerCase();
+    const containerKey =
+      key === "config" ? "config" : key === "aws" ? "aws" : key === "llm" ? "llm" : "reports";
+    const status = scanPhaseStatus(phase, steps, 1);
+    let progress = 0;
+    if (status === "completed") progress = 1;
+    else if (status === "running") progress = 0.55;
+    else if (status === "failed") progress = 0.35;
+    renderSegmentedBar(L1_TRIAL_CONTAINERS[containerKey], progress);
+  });
+  if (!scanRunning && steps?.length) {
+    const allDone = order.every((p) => scanPhaseStatus(p, steps, 1) === "completed");
+    if (allDone) {
+      Object.values(L1_TRIAL_CONTAINERS).forEach((id) => renderSegmentedBar(id, 1));
+    }
+  }
+}
+
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+function describeDonutSegment(cx, cy, outerR, innerR, startAngle, endAngle) {
+  if (endAngle - startAngle >= 359.99) {
+    endAngle = startAngle + 359.99;
+  }
+  const outerStart = polarToCartesian(cx, cy, outerR, endAngle);
+  const outerEnd = polarToCartesian(cx, cy, outerR, startAngle);
+  const innerStart = polarToCartesian(cx, cy, innerR, startAngle);
+  const innerEnd = polarToCartesian(cx, cy, innerR, endAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return [
+    "M", outerStart.x, outerStart.y,
+    "A", outerR, outerR, 0, largeArc, 0, outerEnd.x, outerEnd.y,
+    "L", innerStart.x, innerStart.y,
+    "A", innerR, innerR, 0, largeArc, 1, innerEnd.x, innerEnd.y,
+    "Z",
+  ].join(" ");
+}
+
+function buildL1PieSegments(counts, categories) {
+  const total = categories.reduce((sum, cat) => sum + (counts[cat] || 0), 0);
+  if (!total) return { total: 0, segments: [] };
+
+  let cursor = 0;
+  const segments = [];
+  categories.forEach((cat) => {
+    const value = counts[cat] || 0;
+    if (!value) return;
+    const sweep = (value / total) * 360;
+    const start = cursor;
+    const end = cursor + sweep;
+    cursor = end;
+    segments.push({
+      cat,
+      value,
+      pct: Math.round((value / total) * 100),
+      start,
+      end,
+      color: L1_PIE_COLORS[cat] || L1_PIE_COLORS.Other,
+    });
+  });
+  return { total, segments };
+}
+
+function renderL1PieChart(counts, categories) {
+  const { total, segments } = buildL1PieSegments(counts, categories);
+  const cx = 100;
+  const cy = 100;
+  const outerR = 88;
+  const innerR = 54;
+
+  const paths = segments
+    .map((seg, i) => {
+      const d = describeDonutSegment(cx, cy, outerR, innerR, seg.start, seg.end);
+      return `<path class="l1-pie-segment"
+        data-cat="${escapeHtml(seg.cat)}"
+        d="${d}"
+        fill="${seg.color}"
+        style="--pie-i:${i}"
+        tabindex="0"
+        role="img"
+        aria-label="${escapeHtml(seg.cat)}: ${seg.value} findings (${seg.pct}%)">
+        <title>${escapeHtml(seg.cat)}: ${seg.value} (${seg.pct}%)</title>
+      </path>`;
+    })
+    .join("");
+
+  const legend = categories
+    .map((cat) => {
+      const value = counts[cat] || 0;
+      const pct = total ? Math.round((value / total) * 100) : 0;
+      const color = L1_PIE_COLORS[cat] || L1_PIE_COLORS.Other;
+      return `<li class="l1-pie-legend-item"
+        data-cat="${escapeHtml(cat)}">
+        <span class="l1-pie-legend-swatch" style="background:${color}"></span>
+        <span class="l1-pie-legend-label">${cat.toLowerCase()}</span>
+        <span class="l1-pie-legend-meta">${value} · ${pct}%</span>
+      </li>`;
+    })
+    .join("");
+
+  return `
+    <div class="l1-pie-chart l1-pie-chart-animate">
+      <div class="l1-pie-visual">
+        <svg class="l1-pie-svg" viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="l1-pie-track" cx="${cx}" cy="${cy}" r="${(outerR + innerR) / 2}" fill="none"
+            stroke-width="${outerR - innerR}" stroke="#27272a"/>
+          ${paths}
+        </svg>
+        <div class="l1-pie-center" aria-hidden="true">
+          <span class="l1-pie-total">${total}</span>
+          <span class="l1-pie-total-sub">findings</span>
+        </div>
+      </div>
+      <ul class="l1-pie-legend">${legend}</ul>
+    </div>`;
+}
+
+function bindL1PieInteractions() {
+  if (!els.l1CheckBreakdown) return;
+
+  const setHover = (cat) => {
+    els.l1CheckBreakdown.querySelectorAll(".l1-pie-segment").forEach((el) => {
+      el.classList.toggle("l1-pie-segment-dim", Boolean(cat && el.dataset.cat !== cat));
+    });
+    els.l1CheckBreakdown.querySelectorAll(".l1-pie-legend-item").forEach((el) => {
+      el.classList.toggle("l1-pie-legend-active", Boolean(cat && el.dataset.cat === cat));
+    });
+  };
+
+  els.l1CheckBreakdown.querySelectorAll(".l1-pie-segment, .l1-pie-legend-item").forEach((el) => {
+    const cat = el.dataset.cat;
+    el.addEventListener("mouseenter", () => setHover(cat));
+    el.addEventListener("mouseleave", () => setHover(null));
+    el.addEventListener("focus", () => setHover(cat));
+    el.addEventListener("blur", () => setHover(null));
+  });
+}
+
+function renderL1CheckBreakdown(findings) {
+  if (!els.l1CheckBreakdown) return;
+  const counts = { IAM: 0, S3: 0, EC2: 0, CloudTrail: 0, Other: 0 };
+  (findings || []).forEach((f) => {
+    const cat = categoryForCheck(f.check_id);
+    counts[cat] = (counts[cat] || 0) + 1;
+  });
+  const categories = (findings || []).length ? L1_CHECK_CATEGORIES : [];
+  if (!categories.length) {
+    delete els.l1CheckBreakdown.dataset.counts;
+    delete els.l1CheckBreakdown.dataset.categories;
+    els.l1CheckBreakdown.innerHTML =
+      '<p class="text-sm text-zinc-500">Run a scan to see findings by AWS service.</p>';
+    return;
+  }
+  els.l1CheckBreakdown.dataset.counts = JSON.stringify(counts);
+  els.l1CheckBreakdown.dataset.categories = JSON.stringify(categories);
+  els.l1CheckBreakdown.innerHTML = renderL1PieChart(counts, categories);
+  bindL1PieInteractions();
+}
+
+function renderL1ReportingStats(reports, report) {
+  const l1 = (reports || []).filter((r) => (r.scan_level || 1) === 1);
+  const generated = l1.length;
+  const processed = report ? 1 : 0;
+  const enriched = report?.findings?.length ? report.findings.length : 0;
+  const pending = Math.max(0, generated - processed);
+  if (els.l1ReportsGenerated) els.l1ReportsGenerated.textContent = generated;
+  if (els.l1ReportsProcessed) els.l1ReportsProcessed.textContent = processed;
+  if (els.l1ReportsEnriched) els.l1ReportsEnriched.textContent = enriched;
+  if (els.l1ReportsPending) els.l1ReportsPending.textContent = pending;
+}
+
+function renderL1SeverityBars(sev, total) {
+  const t = total || 0;
+  const low = sev.low || 0;
+  const medium = sev.medium || 0;
+  const critical = sev.critical || 0;
+  const high = sev.high || 0;
+  const pct = (n) => (t ? Math.round((n / t) * 100) : 0);
+  if (els.l1IssuesTotalCount) els.l1IssuesTotalCount.textContent = t;
+  if (els.l1PctLow) els.l1PctLow.textContent = `${pct(low)}%`;
+  if (els.l1PctMedium) els.l1PctMedium.textContent = `${pct(medium)}%`;
+  if (els.l1PctCritical) els.l1PctCritical.textContent = `${pct(critical + high)}%`;
+  if (els.l1BarLow) els.l1BarLow.style.width = `${pct(low)}%`;
+  if (els.l1BarMedium) els.l1BarMedium.style.width = `${pct(medium)}%`;
+  if (els.l1BarCritical) els.l1BarCritical.style.width = `${pct(critical + high)}%`;
+}
+
+function resetL1Overview() {
+  ["l1AssetTotal", "l1AssetCritical", "l1AssetResources", "l1AssetHealth"].forEach((key) => {
+    if (els[key]) els[key].textContent = "—";
+  });
+  ["l1AssetChecksSub", "l1AssetHighSub", "l1AssetRegionSub", "l1AssetDurationSub"].forEach((key) => {
+    if (els[key]) els[key].textContent = "—";
+  });
+  renderL1CheckBreakdown([]);
+  renderL1ReportingStats([], null);
+  renderL1SeverityBars({}, 0);
+  resetL1PipelineTrials();
+}
+
+function renderL1Overview(report, reports = []) {
+  if (!report) {
+    resetL1Overview();
+    renderL1ReportingStats(reports, null);
+    return;
+  }
+  const sev = report.findings_by_severity || {};
+  const total = report.total_findings || 0;
+  if (els.l1AssetTotal) els.l1AssetTotal.textContent = total;
+  if (els.l1AssetCritical) els.l1AssetCritical.textContent = sev.critical || 0;
+  if (els.l1AssetResources) {
+    els.l1AssetResources.textContent = report.metrics?.speed?.resources_scanned ?? total;
+  }
+  if (els.l1AssetHealth) {
+    els.l1AssetHealth.textContent = (report.scan_health || "unknown").replace(/^\w/, (c) => c.toUpperCase());
+  }
+  if (els.l1AssetChecksSub) {
+    els.l1AssetChecksSub.textContent = `${report.total_checks_succeeded || 0}/${report.total_checks_attempted || 13} passed`;
+  }
+  if (els.l1AssetHighSub) els.l1AssetHighSub.textContent = String(sev.high || 0);
+  if (els.l1AssetRegionSub) els.l1AssetRegionSub.textContent = report.aws_region || "—";
+  if (els.l1AssetDurationSub) {
+    els.l1AssetDurationSub.textContent = `${(report.duration_seconds || 0).toFixed(1)}s`;
+  }
+  renderL1CheckBreakdown(report.findings || []);
+  renderL1ReportingStats(reports, report);
+  renderL1SeverityBars(sev, total);
+}
+
 
 const L1_PHASE_STEP_IDS = new Set(["init", "llm_enrichment", "reports"]);
 
@@ -359,17 +916,66 @@ function updateReportHistoryHeading(level) {
   }
 }
 
+function setReportHistoryExpanded(expanded) {
+  const isOpen = Boolean(expanded);
+  els.reportHistoryBody?.classList.toggle("report-history-body-collapsed", !isOpen);
+  els.reportHistoryPanel?.classList.toggle("report-history-collapsed", !isOpen);
+  if (els.reportHistoryToggle) {
+    els.reportHistoryToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+  if (els.reportHistoryChevron) {
+    els.reportHistoryChevron.textContent = isOpen ? "▼" : "▶";
+  }
+  localStorage.setItem("reportHistoryExpanded", isOpen ? "true" : "false");
+}
+
+function initReportHistoryCollapse() {
+  const saved = localStorage.getItem("reportHistoryExpanded");
+  const expanded = saved !== "false";
+  setReportHistoryExpanded(expanded);
+  els.reportHistoryToggle?.addEventListener("click", () => {
+    const open = els.reportHistoryToggle?.getAttribute("aria-expanded") !== "true";
+    setReportHistoryExpanded(open);
+  });
+}
+
+async function initTerminalClientInfo() {
+  const nodes = document.querySelectorAll(".terminal-client-info");
+  const setAll = (text, title = "") => {
+    nodes.forEach((el) => {
+      el.textContent = text;
+      if (title) el.title = title;
+    });
+  };
+  setAll("Detecting IP…", "Resolving your IP and internet provider");
+  try {
+    const data = await fetchJSON("/api/client-session");
+    const label = data.label || `${data.ip || "?"} · ${data.isp || "Unknown provider"}`;
+    setAll(label, `IP: ${data.ip} — Provider: ${data.isp}`);
+  } catch {
+    setAll("Client IP unavailable", "Could not resolve session IP");
+  }
+}
+
 // ─── Active Task Panel (replaces old #pipelinePanel) ───────────────────────
 
 function showActiveTaskPanel(title) {
+  if (currentLevel !== 1) return;
   els.activeTaskPanel.classList.remove("hidden");
   els.activeTaskTitle.textContent = title;
+  els.activeTaskPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function hideActiveTaskPanel() {
   els.activeTaskPanel.classList.add("hidden");
   els.pipelineSteps.innerHTML = "";
-  els.logOutput.textContent = "";
+  setJobLog("");
+}
+
+function setJobLog(text) {
+  if (!els.logOutput) return;
+  els.logOutput.textContent = text || "";
+  els.logOutput.scrollTop = els.logOutput.scrollHeight;
 }
 
 function getScanPipelineOrder(level) {
@@ -402,38 +1008,37 @@ function scanPhaseStatus(phase, steps, level) {
 
 function resetScanPipelineProgress(level) {
   scanPipelineStepIndex[level >= 2 ? "l2" : "l1"] = 0;
+  if (level >= 2) resetL2PipelineFlowViz();
 }
 
 function inferScanPipelinePhase(level, steps, scanRunning) {
+  if (level >= 2) {
+    const backendIdx = inferScanPipelineBackendIndex(level, steps, scanRunning);
+    tickL2DisplayTimeline(backendIdx, scanRunning);
+    scanPipelineStepIndex.l2 = l2DisplayTimeline.displayIdx;
+    return L2_PIPELINE_ORDER[l2DisplayTimeline.displayIdx].id;
+  }
+
   const order = getScanPipelineOrder(level);
-  const key = level >= 2 ? "l2" : "l1";
   let idx = 0;
 
   if (scanRunning) {
-    // Sequential display: find the FIRST running/failed step.
-    // Parallel completions ahead of it are hidden until this step finishes.
-    let found = false;
     for (let i = 0; i < order.length; i++) {
       const status = scanPhaseStatus(order[i], steps, level);
       if (status === "running" || status === "failed") {
         idx = i;
-        found = true;
         break;
       }
-      if (status === "completed") {
-        idx = i; // track furthest completed in case nothing is running yet
-      }
+      if (status === "completed") idx = i;
     }
-    scanPipelineStepIndex[key] = Math.max(scanPipelineStepIndex[key] || 0, idx);
-    return order[scanPipelineStepIndex[key]].id;
+    scanPipelineStepIndex.l1 = Math.max(scanPipelineStepIndex.l1 || 0, idx);
+    return order[scanPipelineStepIndex.l1].id;
   }
 
-  // Scan finished: find the furthest non-pending step
   for (let i = 0; i < order.length; i++) {
-    const status = scanPhaseStatus(order[i], steps, level);
-    if (status !== "pending") idx = i;
+    if (scanPhaseStatus(order[i], steps, level) !== "pending") idx = i;
   }
-  scanPipelineStepIndex[key] = idx;
+  scanPipelineStepIndex.l1 = idx;
   return order[idx].id;
 }
 
@@ -442,9 +1047,9 @@ function getScanStepMeta(level, stepId) {
   return order.find((s) => s.id === stepId) || order[0];
 }
 
-function highlightScanPipelineSteps(level, activeStepId, scanRunning, steps = null) {
+function highlightScanPipelineSteps(level, activeStepId, scanRunning, steps = null, displayIdxOverride = null) {
   const order = getScanPipelineOrder(level);
-  const activeIdx = order.findIndex((s) => s.id === activeStepId);
+  const activeIdx = displayIdxOverride ?? order.findIndex((s) => s.id === activeStepId);
   const ui = getLevelScanUi(level);
 
   // Sequential display: while scanning, only reveal progress up to the first
@@ -489,6 +1094,10 @@ function highlightScanPipelineSteps(level, activeStepId, scanRunning, steps = nu
       ui.status.textContent = "";
     }
   }
+
+  if (level >= 2) {
+    updateL2PipelineFlowViz(activeIdx, steps, scanRunning);
+  }
 }
 
 function metricTextForPhase(phase, steps, level, scanRunning) {
@@ -500,10 +1109,11 @@ function metricTextForPhase(phase, steps, level, scanRunning) {
   // sees a clean 1-by-1 sequential progression in the metric labels.
   if (scanRunning && steps?.length) {
     const order = getScanPipelineOrder(level);
-    const activeStepIdx = order.findIndex((p) => {
+    let activeStepIdx = order.findIndex((p) => {
       const st = scanPhaseStatus(p, steps, level);
       return st === "running" || st === "failed";
     });
+    if (level >= 2) activeStepIdx = l2DisplayTimeline.displayIdx;
     const thisIdx = order.findIndex((p) => p.id === phase.id);
     if (activeStepIdx >= 0 && thisIdx > activeStepIdx) {
       return "Waiting for scan";
@@ -545,11 +1155,25 @@ function updateScanPipelineMetrics(level, steps, scanRunning) {
 function renderLevelScanPipeline(level, steps, logText = "", scanRunning = true) {
   if (!steps?.length) return;
 
-  const ui = getLevelScanUi(level);
-  const activeStepId = inferScanPipelinePhase(level, steps, scanRunning);
+  if (level >= 2) {
+    lastL2ScanSteps = steps;
+    if (scanRunning) startL2TimelineTimer();
+  }
 
-  highlightScanPipelineSteps(level, activeStepId, scanRunning, steps);
+  const ui = getLevelScanUi(level);
+  let displayIdx = null;
+  if (level >= 2) {
+    const backendIdx = inferScanPipelineBackendIndex(level, steps, scanRunning);
+    tickL2DisplayTimeline(backendIdx, scanRunning);
+    displayIdx = l2DisplayTimeline.displayIdx;
+  }
+  const activeStepId = level >= 2
+    ? L2_PIPELINE_ORDER[displayIdx].id
+    : inferScanPipelinePhase(level, steps, scanRunning);
+
+  highlightScanPipelineSteps(level, activeStepId, scanRunning, steps, displayIdx);
   updateScanPipelineMetrics(level, steps, scanRunning);
+  updateL1PipelineTrials(level, steps, scanRunning);
 
   if (ui.log) {
     if (logText && scanRunning) {
@@ -562,7 +1186,17 @@ function renderLevelScanPipeline(level, steps, logText = "", scanRunning = true)
 }
 
 function finishLevelScanPipeline(level, steps) {
+  if (level >= 2) {
+    lastL2ScanSteps = steps;
+    l2Flushing = true;
+    l2DisplayTimeline.backendIdx = L2_PIPELINE_ORDER.length - 1;
+    renderLevelScanPipeline(level, steps, "", false);
+    startL2TimelineTimer();
+    return;
+  }
+
   renderLevelScanPipeline(level, steps, "", false);
+  updateL1PipelineTrials(level, steps, false);
   const order = getScanPipelineOrder(level);
   highlightScanPipelineSteps(level, order[order.length - 1].id, false, steps);
   order.forEach((step) => {
@@ -585,6 +1219,76 @@ function showFullDemoPipeline() {
   els.l1ScanPipelinePanel?.classList.add("hidden");
 }
 
+function setDemoPipelineLog(text) {
+  if (!els.l1DemoPipelineLog) return;
+  els.l1DemoPipelineLog.textContent = text || "";
+  els.l1DemoPipelineLog.scrollTop = els.l1DemoPipelineLog.scrollHeight;
+}
+
+function demoChecklistStatus(phaseIndex, activeIdx, st, running) {
+  if (!running) {
+    if (st?.status === "completed") return "completed";
+    if (st?.status === "failed") return "failed";
+    if (st?.status === "running") return "running";
+    return "pending";
+  }
+  if (phaseIndex < activeIdx) return "completed";
+  if (phaseIndex === activeIdx) {
+    if (st?.status === "failed") return "failed";
+    return "running";
+  }
+  return "pending";
+}
+
+function fullDemoScanDetail(scanSteps, scanRunning) {
+  if (!scanSteps?.length) return null;
+  const activeStepId = inferScanPipelinePhase(1, scanSteps, scanRunning);
+  const meta = getScanStepMeta(1, activeStepId);
+  const order = getScanPipelineOrder(1);
+  const phase = order.find((p) => p.id === activeStepId);
+  if (!phase) return null;
+  const status = scanPhaseStatus(phase, scanSteps, 1);
+  if (status === "running") {
+    const running = stepsForScanPhase(phase, scanSteps, 1).find((s) => s.status === "running");
+    return running?.detail ? `⟳ ${running.detail}` : `⟳ ${meta.name}…`;
+  }
+  if (status === "failed") return `✗ ${meta.name} failed`;
+  if (!scanRunning && status === "completed") return "✓ Scan complete";
+  return `⟳ ${meta.name}…`;
+}
+
+function renderFullDemoChecklist(jobSteps, running, scanSteps = null, scanRunning = false) {
+  if (!els.demoPipelineChecklist) return;
+  const stepMap = Object.fromEntries((jobSteps || []).map((s) => [s.id, s]));
+  const activeId = inferFullDemoPhase(jobSteps, running);
+  const activeIdx = FULL_DEMO_PIPELINE_ORDER.findIndex((p) => p.id === activeId);
+
+  els.demoPipelineChecklist.innerHTML = FULL_DEMO_PIPELINE_ORDER.map((phase, i) => {
+    const st = stepMap[phase.stepId];
+    const status = demoChecklistStatus(i, activeIdx, st, running);
+    let icon;
+    if (status === "completed") icon = '<span class="step-icon-ok">✓</span>';
+    else if (status === "running") icon = '<span class="step-icon-run">⟳</span>';
+    else if (status === "failed") icon = '<span class="step-icon-fail">✗</span>';
+    else icon = '<span class="step-icon-pend">○</span>';
+
+    const detail = (phase.stepId === "demo_scan" && (status === "running" || scanRunning) && scanSteps?.length)
+      ? `<span class="step-detail">${escapeHtml(fullDemoScanDetail(scanSteps, scanRunning) || "⟳ In progress…")}</span>`
+      : st?.detail
+        ? `<span class="step-detail">${escapeHtml(st.detail)}</span>`
+        : status === "pending"
+          ? `<span class="step-detail">Waiting…</span>`
+          : status === "running"
+            ? `<span class="step-detail">⟳ In progress…</span>`
+            : "";
+    return `<li class="step step-${status}">
+      ${icon}
+      <span class="step-label">${phase.num}. ${escapeHtml(phase.name)}</span>
+      ${detail}
+    </li>`;
+  }).join("");
+}
+
 function hideFullDemoPipeline() {
   els.l1DemoPipelinePanel?.classList.add("hidden");
   els.l1ScanPipelinePanel?.classList.remove("hidden");
@@ -592,19 +1296,14 @@ function hideFullDemoPipeline() {
     els.l1DemoPipelineStatus.classList.add("hidden");
     els.l1DemoPipelineStatus.textContent = "";
   }
+  setDemoPipelineLog("");
+  if (els.demoPipelineChecklist) els.demoPipelineChecklist.innerHTML = "";
 }
 
 function resetFullDemoPipeline() {
   fullDemoPipelineStepIndex = 0;
-  FULL_DEMO_PIPELINE_ORDER.forEach((phase, i) => {
-    const el = document.getElementById(phase.id);
-    if (el) {
-      el.classList.remove("l3-step-active", "l3-step-done", "l3-step-failed");
-      el.classList.add("l3-step-pending");
-    }
-    const metricEl = document.getElementById(phase.metricId);
-    if (metricEl) metricEl.textContent = i === 0 ? "⟳ Starting…" : "Waiting…";
-  });
+  renderFullDemoChecklist([], false);
+  setDemoPipelineLog("");
 }
 
 function inferFullDemoPhase(jobSteps, running) {
@@ -624,38 +1323,13 @@ function inferFullDemoPhase(jobSteps, running) {
   return FULL_DEMO_PIPELINE_ORDER[idx].id;
 }
 
-function renderFullDemoPipeline(jobSteps, logText = "", running = true) {
-  if (!jobSteps?.length) return;
+function renderFullDemoPipeline(jobSteps, logText = "", running = true, scanSteps = null, scanRunning = false) {
+  if (!jobSteps?.length && !running) return;
 
-  const stepMap = Object.fromEntries(jobSteps.map((s) => [s.id, s]));
-  const activeId = inferFullDemoPhase(jobSteps, running);
+  const activeId = inferFullDemoPhase(jobSteps || [], running);
   const activeIdx = FULL_DEMO_PIPELINE_ORDER.findIndex((p) => p.id === activeId);
 
-  FULL_DEMO_PIPELINE_ORDER.forEach((phase, i) => {
-    const el = document.getElementById(phase.id);
-    const st = stepMap[phase.stepId];
-    if (el) {
-      el.classList.remove("l3-step-active", "l3-step-done", "l3-step-pending", "l3-step-failed");
-      if (running) {
-        if (i < activeIdx) el.classList.add("l3-step-done");
-        else if (i === activeIdx) el.classList.add(st?.status === "failed" ? "l3-step-failed" : "l3-step-active");
-        else el.classList.add("l3-step-pending");
-      } else if (st?.status === "completed") {
-        el.classList.add("l3-step-done");
-      } else if (st?.status === "failed") {
-        el.classList.add("l3-step-failed");
-      } else {
-        el.classList.add("l3-step-pending");
-      }
-    }
-    const metricEl = document.getElementById(phase.metricId);
-    if (metricEl && st) {
-      if (st.status === "running") metricEl.textContent = st.detail ? `⟳ ${st.detail}` : "⟳ In progress…";
-      else if (st.status === "completed") metricEl.textContent = st.detail ? `✓ ${st.detail}` : "✓ Complete";
-      else if (st.status === "failed") metricEl.textContent = st.detail ? `✗ ${st.detail}` : "✗ Failed";
-      else metricEl.textContent = "Waiting…";
-    }
-  });
+  renderFullDemoChecklist(jobSteps || [], running, scanSteps, scanRunning);
 
   if (els.l1DemoPipelineStatus) {
     if (running && activeIdx >= 0) {
@@ -667,9 +1341,8 @@ function renderFullDemoPipeline(jobSteps, logText = "", running = true) {
     }
   }
 
-  if (els.l1ScanLog && logText) {
-    els.l1ScanLog.textContent = logText;
-    els.l1ScanLog.classList.remove("hidden");
+  if (logText) {
+    setDemoPipelineLog(logText);
   }
 }
 
@@ -698,6 +1371,7 @@ function resetLevelScanPipelineIdle(level) {
     ui.log.classList.add("hidden");
     ui.log.textContent = "";
   }
+  if (level >= 2) resetL2PipelineFlowViz();
 }
 
 function renderJobPipeline(title, steps) {
@@ -749,8 +1423,9 @@ function renderReport(report) {
   const level = reportLevel(report);
   const isL2 = level >= 2;
 
-  els.emptyState.classList.add("hidden");
+  hideEmptyStateForLevel(level);
   els.dashboardContent.classList.remove("hidden");
+  els.kpiGridRow?.classList.toggle("hidden", level === 1);
 
   renderFindingsTableHead(isL2);
   els.kpiDomainsCard.classList.toggle("hidden", !isL2);
@@ -761,6 +1436,12 @@ function renderReport(report) {
   els.kpiHigh.textContent = sev.high || 0;
   els.kpiMedium.textContent = sev.medium || 0;
   els.kpiTotal.textContent = report.total_findings || 0;
+
+  if (level === 1) {
+    fetchJSON("/api/reports")
+      .then((reports) => renderL1Overview(report, reports))
+      .catch(() => renderL1Overview(report, []));
+  }
 
   if (isL2) {
     els.kpiDomains.textContent = (report.domains_scanned || []).length;
@@ -804,6 +1485,252 @@ function formatMetricPct(value) {
   return `${Math.round(value * 100)}%`;
 }
 
+const METRICS_CHART_SERIES = [
+  {
+    id: "precision",
+    label: "Precision",
+    short: "P",
+    target: 95,
+    pass: (v) => v != null && v >= 95,
+    extract: (d) =>
+      d.verified_precision_critical != null ? d.verified_precision_critical * 100 : null,
+    format: (v) => `${v.toFixed(1)}%`,
+  },
+  {
+    id: "recall",
+    label: "Recall",
+    short: "R",
+    target: 80,
+    pass: (v) => v != null && v >= 80,
+    extract: (d) => {
+      if (d.verified_recall != null) return d.verified_recall * 100;
+      if (d.known_misconfigs_total > 0 && d.known_misconfigs_found != null) {
+        return (d.known_misconfigs_found / d.known_misconfigs_total) * 100;
+      }
+      return null;
+    },
+    format: (v) => `${v.toFixed(1)}%`,
+  },
+  {
+    id: "confidence",
+    label: "Confidence",
+    short: "C",
+    target: 75,
+    pass: (v) => v != null && v >= 75,
+    extract: (d) => (d.avg_confidence_score != null ? d.avg_confidence_score : null),
+    format: (v) => `${v.toFixed(1)}%`,
+  },
+  {
+    id: "f1",
+    label: "F1",
+    short: "F1",
+    target: 85,
+    pass: (v) => v != null && v >= 85,
+    extract: (d) => (d.f1_score != null ? d.f1_score * 100 : null),
+    format: (v) => `${v.toFixed(1)}%`,
+  },
+];
+
+function metricsChartYScale(values) {
+  const nums = values.filter((v) => v != null);
+  if (!nums.length) return { min: 0, max: 100, ticks: [0, 25, 50, 75, 100] };
+  const lo = Math.min(...nums);
+  const hi = Math.max(...nums);
+  const min = Math.max(0, Math.floor((lo - 8) / 10) * 10);
+  const max = Math.min(100, Math.ceil((hi + 8) / 10) * 10);
+  const span = Math.max(max - min, 20);
+  const step = span <= 30 ? 5 : span <= 50 ? 10 : 20;
+  const ticks = [];
+  for (let t = min; t <= max; t += step) ticks.push(t);
+  if (ticks[ticks.length - 1] !== max) ticks.push(max);
+  return { min, max, ticks };
+}
+
+function buildMetricsStepGeometry(points, width, height, pad, yMin, yMax) {
+  const chartW = width - pad.left - pad.right;
+  const chartH = height - pad.top - pad.bottom;
+  const baseY = pad.top + chartH;
+  const toX = (i) => pad.left + (i / Math.max(points.length - 1, 1)) * chartW;
+  const toY = (v) => pad.top + chartH - ((v - yMin) / Math.max(yMax - yMin, 1)) * chartH;
+
+  let line = "";
+  let area = `M ${toX(0)} ${baseY}`;
+
+  points.forEach((pt, i) => {
+    const x = toX(i);
+    const y = toY(pt.value);
+    if (i === 0) {
+      line = `M ${x} ${y}`;
+      area += ` L ${x} ${y}`;
+    } else {
+      line += ` H ${x} V ${y}`;
+      area += ` H ${x} V ${y}`;
+    }
+  });
+
+  area += ` L ${toX(points.length - 1)} ${baseY} Z`;
+  return { line, area, toX, toY, baseY, chartW, chartH };
+}
+
+function renderMetricsStepChart(detection) {
+  if (!els.metricsChartHost) return;
+
+  const points = METRICS_CHART_SERIES.map((s) => ({
+    ...s,
+    value: s.extract(detection),
+  })).filter((p) => p.value != null);
+
+  if (!points.length) {
+    els.metricsChartHost.innerHTML =
+      '<p class="text-sm text-muted">Metrics unavailable for this report.</p>';
+    return;
+  }
+
+  const values = points.map((p) => p.value);
+  const { min: yMin, max: yMax, ticks } = metricsChartYScale(values);
+  const width = 560;
+  const height = 200;
+  const pad = { top: 16, right: 20, bottom: 28, left: 36 };
+  const { line, area, toX, toY } = buildMetricsStepGeometry(points, width, height, pad, yMin, yMax);
+
+  const gridLines = ticks
+    .map((tick) => {
+      const y = toY(tick);
+      return `<line class="metrics-chart-grid" x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}" stroke-dasharray="4 6"/>`;
+    })
+    .join("");
+
+  const yLabels = ticks
+    .map((tick) => {
+      const y = toY(tick);
+      return `<text class="metrics-chart-y-label" x="${pad.left - 8}" y="${y + 4}" text-anchor="end">${tick}</text>`;
+    })
+    .join("");
+
+  const dots = points
+    .map((pt, i) => {
+      const x = toX(i);
+      const y = toY(pt.value);
+      return `<circle class="metrics-chart-dot" data-metric-idx="${i}" cx="${x}" cy="${y}" r="5"
+        tabindex="0" role="button" aria-label="${escapeHtml(pt.label)}: ${pt.format(pt.value)}"/>`;
+    })
+    .join("");
+
+  const xLabels = points
+    .map((pt, i) => {
+      const x = toX(i);
+      return `<text class="metrics-chart-x-label" x="${x}" y="${height - 8}" text-anchor="middle">${escapeHtml(pt.label)}</text>`;
+    })
+    .join("");
+
+  const passCount = points.filter((p) => p.pass(p.value)).length;
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const allPass = passCount === points.length;
+  const somePass = passCount > 0;
+  const statusClass = allPass ? "metrics-status-ok" : somePass ? "metrics-status-warn" : "metrics-status-fail";
+  const statusText = allPass ? "✓ On Target" : somePass ? "⚠ Needs Attention" : "✗ Below Target";
+
+  els.metricsChartHost.innerHTML = `
+    <div class="metrics-chart-panel">
+      <div class="metrics-chart-wrap">
+        <svg class="metrics-chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" aria-label="Agent performance step chart">
+          <defs>
+            <linearGradient id="metricsAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#8957e5" stop-opacity="0.38"/>
+              <stop offset="100%" stop-color="#8957e5" stop-opacity="0.02"/>
+            </linearGradient>
+          </defs>
+          ${gridLines}
+          ${yLabels}
+          <path class="metrics-chart-area" d="${area}" fill="url(#metricsAreaGrad)"/>
+          <path class="metrics-chart-line" d="${line}" fill="none"/>
+          ${dots}
+          ${xLabels}
+        </svg>
+        <div id="metricsChartTooltip" class="metrics-chart-tooltip hidden" role="tooltip"></div>
+      </div>
+      <div class="metrics-chart-footer">
+        <div class="metrics-chart-range">
+          <span class="metrics-chart-range-value">${lo.toFixed(1)} – ${hi.toFixed(1)}</span>
+          <span class="metrics-chart-range-unit">composite %</span>
+        </div>
+        <span class="metrics-status-badge ${statusClass}">${statusText}</span>
+      </div>
+      <ul class="metrics-chart-legend">
+        ${points
+          .map(
+            (p) => `<li class="metrics-chart-legend-item${p.pass(p.value) ? "" : " metrics-chart-legend-fail"}">
+              <span class="metrics-chart-legend-dot"></span>
+              <span>${escapeHtml(p.label)}</span>
+              <span class="metrics-chart-legend-val">${escapeHtml(p.format(p.value))}</span>
+              <span class="metrics-chart-legend-target">≥ ${p.target}%</span>
+            </li>`
+          )
+          .join("")}
+      </ul>
+    </div>`;
+
+  bindMetricsChartInteractions(points);
+}
+
+function bindMetricsChartInteractions(points) {
+  const tooltip = document.getElementById("metricsChartTooltip");
+  const wrap = els.metricsChartHost?.querySelector(".metrics-chart-wrap");
+  if (!tooltip || !wrap) return;
+
+  let pinnedIdx = null;
+
+  const positionTip = (dotEl) => {
+    const wrapRect = wrap.getBoundingClientRect();
+    const dotRect = dotEl.getBoundingClientRect();
+    const cx = dotRect.left + dotRect.width / 2 - wrapRect.left;
+    const cy = dotRect.top - wrapRect.top;
+    tooltip.style.left = `${cx}px`;
+    tooltip.style.top = `${cy}px`;
+  };
+
+  const showTip = (idx, dotEl, pin = false) => {
+    const pt = points[idx];
+    if (!pt || !dotEl) return;
+    if (pin) pinnedIdx = idx;
+    tooltip.textContent = `${pt.label} · ${pt.format(pt.value)}`;
+    tooltip.classList.remove("hidden");
+    wrap.querySelectorAll(".metrics-chart-dot").forEach((d, i) => {
+      d.classList.toggle("metrics-chart-dot-active", i === idx);
+    });
+    positionTip(dotEl);
+  };
+
+  const hideTip = (force = false) => {
+    if (!force && pinnedIdx !== null) return;
+    pinnedIdx = null;
+    tooltip.classList.add("hidden");
+    wrap.querySelectorAll(".metrics-chart-dot").forEach((d) => d.classList.remove("metrics-chart-dot-active"));
+  };
+
+  wrap.querySelectorAll(".metrics-chart-dot").forEach((dot) => {
+    const idx = parseInt(dot.dataset.metricIdx, 10);
+    dot.addEventListener("mouseenter", () => showTip(idx, dot));
+    dot.addEventListener("focus", () => showTip(idx, dot));
+    dot.addEventListener("mouseleave", () => hideTip());
+    dot.addEventListener("blur", () => hideTip(true));
+    dot.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (pinnedIdx === idx) {
+        hideTip(true);
+      } else {
+        showTip(idx, dot, true);
+      }
+    });
+  });
+
+  wrap.addEventListener("click", (ev) => {
+    if (!ev.target.closest(".metrics-chart-dot")) hideTip(true);
+  });
+}
+
 function renderMetricsDetailTable(container, rows) {
   if (!container) return;
   if (!rows.length) {
@@ -820,15 +1747,15 @@ function renderAgentMetrics(report) {
   if (!metrics) {
     if (els.metricsEmpty) els.metricsEmpty.classList.remove("hidden");
     if (els.metricsContent) els.metricsContent.classList.add("hidden");
-    if (els.metricsHeadline) els.metricsHeadline.classList.add("hidden");
+    setMetricsHeadline("");
+    if (els.metricsChartHost) els.metricsChartHost.innerHTML = "";
     return;
   }
 
   if (els.metricsEmpty) els.metricsEmpty.classList.add("hidden");
   if (els.metricsContent) els.metricsContent.classList.remove("hidden");
   if (els.metricsHeadline) {
-    els.metricsHeadline.textContent = metrics.headline || "";
-    els.metricsHeadline.classList.toggle("hidden", !metrics.headline);
+    setMetricsHeadline(metrics.headline || "");
   }
 
   const d = metrics.detection || {};
@@ -836,38 +1763,7 @@ function renderAgentMetrics(report) {
   const c = metrics.coverage || {};
   const l2 = metrics.level2;
 
-  if (els.metricPrecision) {
-    els.metricPrecision.textContent = formatMetricPct(d.verified_precision_critical);
-  }
-  setMetricBadge(
-    els.metricPrecisionBadge,
-    d.verified_precision_critical != null && d.verified_precision_critical >= 0.95
-  );
-
-  if (els.metricRecall) {
-    const recallText =
-      d.verified_recall != null
-        ? formatMetricPct(d.verified_recall)
-        : d.known_misconfigs_found != null
-          ? `${d.known_misconfigs_found}/${d.known_misconfigs_total || 0}`
-          : "N/A";
-    els.metricRecall.textContent = recallText;
-  }
-  setMetricBadge(
-    els.metricRecallBadge,
-    d.verified_recall != null && d.verified_recall >= 0.8
-  );
-
-  if (els.metricF1) {
-    els.metricF1.textContent = d.f1_score != null ? d.f1_score.toFixed(2) : "N/A";
-  }
-  setMetricBadge(els.metricF1Badge, d.f1_score != null && d.f1_score >= 0.85);
-
-  if (els.metricConfidence) {
-    els.metricConfidence.textContent =
-      d.avg_confidence_score != null ? `${d.avg_confidence_score}%` : "N/A";
-  }
-  setMetricBadge(els.metricConfidenceBadge, (d.avg_confidence_score || 0) >= 75);
+  renderMetricsStepChart(d);
 
   const sevRows = Object.entries(d.findings_by_severity || {}).map(
     ([sev, count]) => [`${sev} findings`, count]
@@ -1038,6 +1934,320 @@ function sortHistoryItems(items) {
   });
 }
 
+function parseMetricsHeadlineParts(headline) {
+  if (!headline) return [];
+  return headline.split(" | ").map((part) => {
+    const colon = part.indexOf(":");
+    if (colon === -1) return { label: part.trim(), value: "" };
+    return {
+      label: part.slice(0, colon).trim(),
+      value: part.slice(colon + 1).trim(),
+    };
+  });
+}
+
+function metricsHeadlineChipClass(label) {
+  const key = label.toLowerCase();
+  if (key.includes("precision")) return "metrics-chip-precision";
+  if (key.includes("recall")) return "metrics-chip-recall";
+  if (key.includes("f1")) return "metrics-chip-f1";
+  if (key.includes("scan")) return "metrics-chip-scan";
+  if (key.includes("coverage")) return "metrics-chip-coverage";
+  if (key.includes("domain")) return "metrics-chip-domain";
+  if (key.includes("dedup")) return "metrics-chip-dedup";
+  if (key.includes("posture")) return "metrics-chip-posture";
+  return "metrics-chip-default";
+}
+
+function parseMetricForProgress(label, valueStr) {
+  const key = label.toLowerCase();
+  if (key.includes("f1")) {
+    const n = parseFloat(valueStr);
+    const pct = Number.isNaN(n) ? 0 : Math.min(100, n * 100);
+    return { pct, target: 85, display: valueStr, showBar: true, pass: pct >= 85 };
+  }
+  if (key.includes("scan")) {
+    const sec = parseFloat(String(valueStr).replace(/s$/i, ""));
+    const pct = Number.isNaN(sec) ? 0 : Math.min(100, Math.max(8, 100 - sec * 1.5));
+    return { pct, target: null, display: valueStr, showBar: true, pass: true, info: true };
+  }
+  const pctMatch = String(valueStr).match(/^([\d.]+)\s*%/);
+  if (pctMatch) {
+    const pct = parseFloat(pctMatch[1]);
+    let target = 80;
+    if (key.includes("precision")) target = 95;
+    else if (key.includes("recall")) target = 80;
+    else if (key.includes("coverage")) target = 100;
+    return {
+      pct: Number.isNaN(pct) ? 0 : Math.min(100, pct),
+      target,
+      display: valueStr,
+      showBar: true,
+      pass: !Number.isNaN(pct) && pct >= target,
+    };
+  }
+  return { pct: 0, target: null, display: valueStr, showBar: false, pass: true };
+}
+
+function renderFindingsProgressBar(sev, total) {
+  const t = total || 0;
+  if (!t) {
+    return `<div class="report-findings-progress">
+      <div class="report-findings-progress-head"><span class="report-findings-progress-label">Findings</span><span class="report-findings-progress-value">0</span></div>
+      <div class="report-findings-track"><div class="report-findings-fill report-findings-fill-empty" style="width:0%"></div></div>
+    </div>`;
+  }
+  const critical = sev.critical || 0;
+  const high = sev.high || 0;
+  const medium = sev.medium || 0;
+  const low = sev.low || 0;
+  const other = Math.max(0, t - critical - high - medium - low);
+  const segs = [
+    { cls: "report-findings-seg-critical", n: critical },
+    { cls: "report-findings-seg-high", n: high },
+    { cls: "report-findings-seg-medium", n: medium },
+    { cls: "report-findings-seg-low", n: low },
+    { cls: "report-findings-seg-other", n: other },
+  ].filter((s) => s.n > 0);
+  const segHtml = segs
+    .map((s) => `<span class="report-findings-seg ${s.cls}" style="width:${((s.n / t) * 100).toFixed(1)}%" title="${s.n}"></span>`)
+    .join("");
+  return `<div class="report-findings-progress">
+    <div class="report-findings-progress-head">
+      <span class="report-findings-progress-label">Findings distribution</span>
+      <span class="report-findings-progress-value">${t} total</span>
+    </div>
+    <div class="report-findings-track" role="img" aria-label="${t} findings">${segHtml}</div>
+  </div>`;
+}
+
+function renderMetricsProgressHtml(headline, compact = false) {
+  const parts = parseMetricsHeadlineParts(headline);
+  if (!parts.length) return "";
+  const cards = parts
+    .map((p) => {
+      const chip = metricsHeadlineChipClass(p.label);
+      const meta = parseMetricForProgress(p.label, p.value);
+      const fillClass = meta.pass ? "metric-progress-fill-ok" : "metric-progress-fill-warn";
+      const barWidth = meta.showBar ? `${Math.max(meta.pct, meta.info ? 8 : 4)}%` : "0%";
+      const targetHint =
+        meta.target != null && meta.showBar && !meta.info
+          ? `<span class="metric-progress-target">target ≥ ${meta.target}%</span>`
+          : "";
+      const barHtml = meta.showBar
+        ? `<div class="metric-progress-track"><div class="metric-progress-fill ${fillClass}" style="width:${barWidth}"></div></div>`
+        : "";
+      return `<div class="metric-progress-card ${chip}${compact ? " metric-progress-card-compact" : ""}">
+        <div class="metric-progress-card-head">
+          <span class="metric-progress-label">${escapeHtml(p.label)}</span>
+          <span class="metric-progress-value">${escapeHtml(meta.display)}</span>
+        </div>
+        ${barHtml}
+        ${targetHint}
+      </div>`;
+    })
+    .join("");
+  return `<div class="metrics-progress-grid${compact ? " metrics-progress-grid-compact" : ""}">${cards}</div>`;
+}
+
+function renderMetricsHeadlineHtml(headline) {
+  return renderMetricsProgressHtml(headline, false);
+}
+
+function setMetricsHeadline(headline) {
+  if (!els.metricsHeadline) return;
+  if (!headline) {
+    els.metricsHeadline.classList.add("hidden");
+    els.metricsHeadline.innerHTML = "";
+    return;
+  }
+  els.metricsHeadline.innerHTML = renderMetricsProgressHtml(headline, false);
+  els.metricsHeadline.classList.remove("hidden");
+}
+
+function reportItemDate(r) {
+  return r.end_time || r.completed_at || r.started_at || "";
+}
+
+function exportReportPdfJs(report, pdfName) {
+  if (!window.jspdf?.jsPDF) {
+    throw new Error("PDF library not loaded");
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const sev = report.findings_by_severity || {};
+  const metrics = report.metrics?.headline || "";
+  const margin = 14;
+  let y = 16;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(24, 24, 27);
+  doc.text("Aivar Security Scan Report", margin, y);
+
+  y += 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(113, 113, 122);
+  doc.text(
+    `${formatTime(report.end_time || report.start_time)} · Level ${report.scan_level || 1} · ${report.scan_health || ""}`,
+    margin,
+    y
+  );
+
+  if (metrics) {
+    y += 7;
+    doc.setFontSize(9);
+    doc.setTextColor(63, 63, 70);
+    const lines = doc.splitTextToSize(metrics, 180);
+    doc.text(lines, margin, y);
+    y += lines.length * 4.5 + 2;
+  }
+
+  y += 4;
+  doc.autoTable({
+    startY: y,
+    head: [["Metric", "Value"]],
+    body: [
+      ["Total findings", String(report.total_findings ?? 0)],
+      ["Critical", String(sev.critical ?? 0)],
+      ["High", String(sev.high ?? 0)],
+      ["Medium", String(sev.medium ?? 0)],
+      ["Low", String(sev.low ?? 0)],
+      ["Region", report.aws_region || "—"],
+      ["Account", report.aws_account_id || "—"],
+      ["Duration", `${(report.duration_seconds || 0).toFixed(1)}s`],
+    ],
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 2, textColor: [24, 24, 27] },
+    headStyles: { fillColor: [244, 244, 245], textColor: [24, 24, 27], fontStyle: "bold" },
+    margin: { left: margin, right: margin },
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+  const findings = (report.findings || []).slice(0, 250);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(24, 24, 27);
+  doc.text("Findings", margin, y);
+
+  doc.autoTable({
+    startY: y + 4,
+    head: [["Severity", "Check", "Title", "Conf."]],
+    body: findings.length
+      ? findings.map((f) => [
+          f.severity || "",
+          f.check_id || "",
+          (f.title || f.resource_id || "").slice(0, 80),
+          String(f.confidence_score ?? ""),
+        ])
+      : [["—", "—", "No findings", "—"]],
+    theme: "grid",
+    styles: { fontSize: 8, cellPadding: 2, overflow: "linebreak", textColor: [24, 24, 27] },
+    headStyles: { fillColor: [244, 244, 245], textColor: [24, 24, 27], fontStyle: "bold" },
+    columnStyles: { 2: { cellWidth: 80 } },
+    margin: { left: margin, right: margin },
+  });
+
+  doc.save(pdfName);
+}
+
+async function exportReportAsPdf(filename = null) {
+  try {
+    let report = currentReport;
+    if (filename) {
+      report = await fetchJSON(`/api/reports/${encodeURIComponent(filename)}`);
+    }
+    if (!report) {
+      showToast("Load a report first, or use PDF on a history row", true);
+      return;
+    }
+
+    const pdfName = `scan-report-${(report.scan_id || report.filename || "export").slice(0, 12)}.pdf`;
+    exportReportPdfJs(report, pdfName);
+    showToast("PDF exported");
+  } catch (e) {
+    showToast(e.message || "PDF export failed", true, 6000);
+  }
+}
+
+function renderReportHistoryList(list, filterLevel) {
+  if (!els.reportList) return;
+
+  if (!list.length) {
+    const label = filterLevel == null ? "" : `Level ${filterLevel} `;
+    els.reportList.innerHTML = `<div class="report-list-empty">No ${label}reports saved yet.</div>`;
+    return;
+  }
+
+  els.reportList.innerHTML = list
+    .map((r) => {
+      const lvl = r.scan_level || 1;
+      const sev = r.findings_by_severity || {};
+      const critCount = sev.critical || 0;
+      const highCount = sev.high || 0;
+      const isL3Run = Boolean(r.is_l3_run);
+      const fname = r.filename || "";
+      const runId = r.scan_run_id || "";
+      const timeLabel = formatTime(reportItemDate(r));
+      const countsLabel = isL3Run
+        ? `${r.total_findings} findings · posture ${r.posture_score ?? "—"}/100`
+        : `${r.total_findings} findings`;
+      const findingsBar = renderFindingsProgressBar(sev, r.total_findings || 0);
+      const metricsHtml = r.metrics_headline
+        ? `<div class="report-item-metrics">${renderMetricsProgressHtml(r.metrics_headline, true)}</div>`
+        : "";
+      const loadBtn = isL3Run
+        ? `<button type="button" class="btn btn-copy report-load-btn" data-l3-run-id="${attrEscape(runId)}">Load</button>`
+        : `<button type="button" class="btn btn-copy report-load-btn" data-filename="${attrEscape(fname)}">Load</button>`;
+      const pdfBtn = isL3Run
+        ? ""
+        : `<button type="button" class="btn btn-secondary report-pdf-btn" data-filename="${attrEscape(fname)}" title="Export PDF">PDF</button>`;
+      const deleteAttrs = isL3Run
+        ? `data-l3-run-id="${attrEscape(runId)}"`
+        : `data-filename="${attrEscape(fname)}"`;
+
+      return `
+        <div class="report-item" ${isL3Run ? `data-l3-run-id="${attrEscape(runId)}"` : `data-filename="${attrEscape(fname)}"`} data-report-date="${escapeHtml(reportItemDate(r).slice(0, 10))}">
+          <div class="report-item-main">
+            <div class="report-item-top">
+              <span class="report-level-badge lvl-${lvl}">L${lvl}</span>
+              <span class="report-time">${timeLabel}</span>
+              <span class="report-counts">
+                ${countsLabel}
+                ${critCount > 0 ? `<span class="sev-dot sev-critical">${critCount}C</span>` : ""}
+                ${highCount > 0 ? `<span class="sev-dot sev-high">${highCount}H</span>` : ""}
+              </span>
+              <span class="report-health health-${r.scan_health}">${r.scan_health}</span>
+            </div>
+            ${findingsBar}
+            ${metricsHtml}
+          </div>
+          <div class="report-actions">
+            ${loadBtn}
+            ${pdfBtn}
+            <button type="button" class="btn btn-danger report-delete-btn" ${deleteAttrs} title="Delete report">Delete</button>
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  bindReportListActions();
+
+  if (currentReport?.filename) {
+    els.reportList
+      .querySelector(`[data-filename="${CSS.escape(currentReport.filename)}"]`)
+      ?.classList.add("report-item-active");
+  } else if (currentReport?.scan_id) {
+    const match = list.find((r) => r.scan_id === currentReport.scan_id);
+    if (match?.filename) {
+      els.reportList
+        .querySelector(`[data-filename="${CSS.escape(match.filename)}"]`)
+        ?.classList.add("report-item-active");
+    }
+  }
+}
+
 function bindReportListActions() {
   if (!els.reportList) return;
 
@@ -1077,6 +2287,15 @@ function bindReportListActions() {
         .catch((err) => showToast(err.message, true));
     });
   });
+
+  els.reportList.querySelectorAll(".report-pdf-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const filename = btn.getAttribute("data-filename");
+      if (filename) exportReportAsPdf(filename);
+    });
+  });
 }
 
 async function loadHistory(level = currentLevel) {
@@ -1114,64 +2333,14 @@ async function loadHistory(level = currentLevel) {
       list = sortHistoryItems([...list]);
     }
 
-    if (!list.length) {
-      const label = filterLevel == null ? "" : `Level ${filterLevel} `;
-      els.reportList.innerHTML = `<div class="report-list-empty">No ${label}reports saved yet.</div>`;
-      return;
-    }
+    renderReportHistoryList(list, filterLevel);
 
-    els.reportList.innerHTML = list
-      .map((r) => {
-        const lvl = r.scan_level || 1;
-        const sev = r.findings_by_severity || {};
-        const critCount = sev.critical || 0;
-        const highCount = sev.high || 0;
-        const isL3Run = Boolean(r.is_l3_run);
-        const fname = r.filename || "";
-        const runId = r.scan_run_id || "";
-        const timeLabel = isL3Run
-          ? formatTime(r.end_time)
-          : formatTime(r.end_time);
-        const countsLabel = isL3Run
-          ? `${r.total_findings} findings · posture ${r.posture_score ?? "—"}/100`
-          : `${r.total_findings} findings`;
-        const loadBtn = isL3Run
-          ? `<button type="button" class="btn btn-copy report-load-btn" data-l3-run-id="${attrEscape(runId)}">View L3</button>`
-          : `<button type="button" class="btn btn-copy report-load-btn" data-filename="${attrEscape(fname)}">Load</button>`;
-        const deleteAttrs = isL3Run
-          ? `data-l3-run-id="${attrEscape(runId)}"`
-          : `data-filename="${attrEscape(fname)}"`;
-
-        return `
-          <div class="report-item" ${isL3Run ? `data-l3-run-id="${attrEscape(runId)}"` : `data-filename="${attrEscape(fname)}"`}>
-            <span class="report-level-badge lvl-${lvl}">L${lvl}</span>
-            <span class="report-time">${timeLabel}</span>
-            <span class="report-counts">
-              ${countsLabel}
-              ${critCount > 0 ? `<span class="sev-dot sev-critical">${critCount}C</span>` : ""}
-              ${highCount > 0 ? `<span class="sev-dot sev-high">${highCount}H</span>` : ""}
-            </span>
-            <span class="report-health health-${r.scan_health}">${r.scan_health}</span>
-            <div class="report-actions">
-              ${loadBtn}
-              <button type="button" class="btn btn-danger report-delete-btn" ${deleteAttrs} title="Delete report">Delete</button>
-            </div>
-          </div>`;
-      })
-      .join("");
-
-    bindReportListActions();
-
-    if (currentReport?.filename) {
-      els.reportList
-        .querySelector(`[data-filename="${CSS.escape(currentReport.filename)}"]`)
-        ?.classList.add("report-item-active");
-    } else if (currentReport?.scan_id) {
-      const match = list.find((r) => r.scan_id === currentReport.scan_id);
-      if (match?.filename) {
-        els.reportList
-          .querySelector(`[data-filename="${CSS.escape(match.filename)}"]`)
-          ?.classList.add("report-item-active");
+    if (filterLevel === 1) {
+      const l1Reports = reports.filter((r) => (r.scan_level || 1) === 1);
+      if (currentReport && reportLevel(currentReport) === 1) {
+        renderL1Overview(currentReport, l1Reports);
+      } else {
+        renderL1ReportingStats(l1Reports, null);
       }
     }
   } catch {
@@ -1257,11 +2426,12 @@ async function loadLatestReportForLevel(level) {
     renderReport(report);
     await loadHistory(level);
   } catch {
-    els.dashboardContent.classList.add("hidden");
-    els.emptyState.classList.remove("hidden");
-    const state = EMPTY_STATE[level] || EMPTY_STATE[1];
-    els.emptyStateTitle.textContent = state.title;
-    els.emptyStateDesc.innerHTML = state.desc;
+    showEmptyStateForLevel(level);
+    if (level === 1) {
+      fetchJSON("/api/reports")
+        .then((reports) => renderL1Overview(null, reports))
+        .catch(() => resetL1Overview());
+    }
     await loadHistory(level);
   }
 }
@@ -1309,9 +2479,13 @@ async function pollStatus() {
       const scanLog = (scanSt.log_tail || []).join("\n");
       const logText = [jobLog, scanLog].filter(Boolean).join("\n");
       if (jobSt.job_type === "full_demo") {
-        hideFullDemoPipeline();
+        showFullDemoPipeline();
+        renderFullDemoPipeline(jobSt.steps, logText, true, scanSt.steps, true);
+        updateL1PipelineTrials(lvl, scanSt.steps, true);
+      } else {
+        els.l1ScanPipelinePanel?.classList.remove("hidden");
+        renderLevelScanPipeline(lvl, scanSt.steps, logText, true);
       }
-      renderLevelScanPipeline(lvl, scanSt.steps, logText, true);
     } else if (jobRunning) {
       activeMode = "job";
       const jt = jobSt.job_type || "job";
@@ -1326,7 +2500,7 @@ async function pollStatus() {
       } else {
         resetLevelScanPipelineIdle(1);
         resetLevelScanPipelineIdle(2);
-        els.logOutput.textContent = (jobSt.log_tail || []).join("\n");
+        setJobLog((jobSt.log_tail || []).join("\n"));
         renderJobPipeline(`${JOB_TITLES[jt] || "Working…"} (${jobSt.steps_completed || 0}/${jobSt.steps_total || 0})`, jobSt.steps);
       }
     } else {
@@ -1336,6 +2510,11 @@ async function pollStatus() {
         const completedLevel = scanSt.scan_level || activeScanLevel || 1;
         if (jobSt.state === "running" && jobSt.job_type === "full_demo") {
           finishLevelScanPipeline(completedLevel, scanSt.steps);
+          const jobLog = (jobSt.log_tail || []).join("\n");
+          const scanLog = (scanSt.log_tail || []).join("\n");
+          const logText = [jobLog, scanLog].filter(Boolean).join("\n");
+          showFullDemoPipeline();
+          renderFullDemoPipeline(jobSt.steps, logText, true, scanSt.steps, false);
           return;
         }
         stopPolling();
@@ -1364,8 +2543,9 @@ async function pollStatus() {
         setScanBadge("completed", "Done");
         if (jobSt.job_type === "full_demo" && jobSt.result?.report_file) {
           hideActiveTaskPanel();
-          renderFullDemoPipeline(jobSt.steps, (jobSt.log_tail || []).join("\n"), false);
-          hideFullDemoPipeline();
+          const logText = (jobSt.log_tail || []).join("\n");
+          showFullDemoPipeline();
+          renderFullDemoPipeline(jobSt.steps, logText, false, scanSt.steps, false);
           if (scanSt.steps?.length) {
             finishLevelScanPipeline(1, scanSt.steps);
           }
@@ -1379,10 +2559,9 @@ async function pollStatus() {
           await loadHistory(1);
           const count = currentReport?.total_findings ?? "?";
           showToast(`Full demo complete — ${count} finding(s) found`);
-          if (els.l1ScanLog) els.l1ScanLog.classList.add("hidden");
         } else if (jobSt.job_type === "full_demo") {
-          hideFullDemoPipeline();
-          renderFullDemoPipeline(jobSt.steps, (jobSt.log_tail || []).join("\n"), false);
+          showFullDemoPipeline();
+          renderFullDemoPipeline(jobSt.steps, (jobSt.log_tail || []).join("\n"), false, scanSt.steps, false);
           showToast(jobSt.result?.message || "Full demo complete");
         } else if (jobSt.job_type === "verify" && jobSt.result) {
           showToast(`Verify: ${jobSt.result.passed}/${jobSt.result.total} PASS`);
@@ -1416,12 +2595,9 @@ async function pollStatus() {
           hideActiveTaskPanel();
           showFullDemoPipeline();
           renderFullDemoPipeline(jobSt.steps, errLog, false);
-          if (els.l1ScanLog) {
-            els.l1ScanLog.textContent = errLog;
-            els.l1ScanLog.classList.remove("hidden");
-          }
+          setDemoPipelineLog(errLog);
         } else {
-          els.logOutput.textContent = errLog;
+          setJobLog(errLog);
         }
         showToast(jobSt.error || "Operation failed", true, 6000);
       } else {
@@ -1460,13 +2636,18 @@ async function postDemo(path, label) {
       hideActiveTaskPanel();
       resetFullDemoPipeline();
       showFullDemoPipeline();
-      if (els.l1ScanLog) {
-        els.l1ScanLog.textContent = `Starting ${label}...\n`;
-        els.l1ScanLog.classList.remove("hidden");
+      setDemoPipelineLog(`Starting ${label}...\n`);
+      if (els.l1DemoPipelineStatus) {
+        els.l1DemoPipelineStatus.textContent = "Running — Step 1: Create Misconfigs";
+        els.l1DemoPipelineStatus.classList.remove("hidden");
       }
+      renderFullDemoChecklist(
+        [{ id: "demo_setup", label: "Create Misconfigs", status: "running", detail: "Starting…" }],
+        true
+      );
     } else {
       showActiveTaskPanel(`${label}…`);
-      els.logOutput.textContent = `Starting ${label}...\n`;
+      setJobLog(`Starting ${label}...\n`);
     }
     await fetchJSON(path, { method: "POST" });
     showToast(`${label} started`);
@@ -1488,7 +2669,8 @@ async function startScan(level) {
     setScanBadge("running", level >= 2 ? "L2 Scanning" : "L1 Scanning");
     setButtonsDisabled(true);
     hideActiveTaskPanel();
-    resetScanPipelineProgress(level);
+    resetLevelScanPipelineIdle(level);
+    els.l1ScanPipelinePanel?.classList.remove("hidden");
     renderLevelScanPipeline(
       level,
       [{ id: "init", label: "Load configuration", status: "running", detail: "Starting…" }],
@@ -1561,6 +2743,450 @@ function formatL3PipelineTrend(trend, det) {
   return "Run 2+ scans to see trend direction";
 }
 
+function setSocProgress(el, pct) {
+  if (!el) return;
+  el.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+}
+
+function animateSocCounter(el, targetText) {
+  if (!el || !el.dataset.animate) {
+    if (el) el.textContent = targetText;
+    return;
+  }
+  const numMatch = String(targetText).match(/([\d.]+)/);
+  if (!numMatch || targetText === "—") {
+    el.textContent = targetText;
+    return;
+  }
+  const target = parseFloat(numMatch[1]);
+  const suffix = targetText.replace(numMatch[0], "");
+  const start = parseFloat(el.dataset.lastVal || "0") || 0;
+  const duration = 600;
+  const t0 = performance.now();
+  const tick = (now) => {
+    const p = Math.min(1, (now - t0) / duration);
+    const eased = 1 - (1 - p) ** 3;
+    const val = start + (target - start) * eased;
+    el.textContent = `${Number.isInteger(target) ? Math.round(val) : val.toFixed(2)}${suffix}`;
+    if (p < 1) requestAnimationFrame(tick);
+    else el.dataset.lastVal = String(target);
+  };
+  requestAnimationFrame(tick);
+}
+
+function renderSocSparkline(svgEl, points, color = "#58a6ff") {
+  if (!svgEl) return;
+  const w = 64;
+  const h = 24;
+  const pad = 2;
+  const nums = points.filter((n) => n != null && !Number.isNaN(n));
+  if (nums.length < 2) {
+    const flat = nums[0] ?? 50;
+    nums.push(flat, flat);
+  }
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
+  const span = max - min || 1;
+  const coords = nums.map((v, i) => {
+    const x = pad + (i / (nums.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((v - min) / span) * (h - pad * 2);
+    return `${x},${y}`;
+  });
+  svgEl.innerHTML = `<polyline points="${coords.join(" ")}" style="stroke:${color}"/>`;
+}
+
+function renderL3SocSparklines(trend, agentMetrics) {
+  const history = (trend.scan_history || []).map((r) => r.posture_score).filter((v) => v != null);
+  const l3 = agentMetrics?.level3 || {};
+  const det = agentMetrics?.detection || {};
+  document.querySelectorAll(".soc-kpi-spark").forEach((svg) => {
+    const key = svg.dataset.spark;
+    let pts = history.length ? history : [50, 52, 48, 55, 53];
+    let color = "#58a6ff";
+    if (key === "posture") pts = history.length ? history : [0, 0];
+    else if (key === "critical") pts = [trend.open_critical_count ?? 0];
+    else if (key === "f1") {
+      pts = det.f1_score != null ? [det.f1_score * 80, det.f1_score * 100] : [0, 0];
+      color = "#8957e5";
+    } else if (key === "compliance") {
+      pts = l3.sla_compliance_rate != null ? [l3.sla_compliance_rate * 100] : [0];
+      color = "#f85149";
+    } else if (key === "reliability") {
+      pts = l3.scan_reliability_rate != null ? [l3.scan_reliability_rate * 100] : [0];
+      color = "#3fb950";
+    } else if (key === "resolution") {
+      pts = l3.resolution_rate != null ? [l3.resolution_rate * 100] : [0];
+    }
+    renderSocSparkline(svg, pts.length > 1 ? pts : [...pts, ...pts], color);
+  });
+}
+
+function inferL3ScanFlowIndex(logTail, scanRunning) {
+  const log = extractCurrentScanLog(logTail || []).toLowerCase();
+  if (!scanRunning) return L3_SCAN_FLOW_STAGES.length;
+  let idx = 0;
+  L3_SCAN_FLOW_STAGES.forEach((stage, i) => {
+    if (log.includes(stage.log) || log.includes(`[l3-phase] ${stage.log}`)) idx = i + 1;
+  });
+  if (/l3 scan .+ started|starting level 3/i.test(log)) idx = Math.max(idx, 1);
+  return Math.min(idx, L3_SCAN_FLOW_STAGES.length - 1);
+}
+
+function renderL3ScanPipelineHero(scanRunning, logTail) {
+  const host = els.l3ScanPipelineHero;
+  if (!host) return;
+  const activeIdx = scanRunning ? inferL3ScanFlowIndex(logTail, true) : L3_SCAN_FLOW_STAGES.length;
+
+  const nodes = L3_SCAN_FLOW_STAGES.map((stage, i) => {
+    let cls = "soc-flow-node";
+    if (scanRunning && i === activeIdx) cls += " soc-flow-running";
+    else if (!scanRunning && i < L3_SCAN_FLOW_STAGES.length) cls += " soc-flow-done";
+    else if (scanRunning && i < activeIdx) cls += " soc-flow-done";
+    const conn =
+      i < L3_SCAN_FLOW_STAGES.length - 1
+        ? `<div class="soc-flow-connector${scanRunning && i < activeIdx ? " soc-flow-active" : ""}"></div>`
+        : "";
+    return `${i > 0 ? "" : ""}<div class="${cls}"><div class="soc-flow-ring">${stage.short}</div><span class="soc-flow-label">${escapeHtml(stage.label)}</span></div>${conn}`;
+  }).join("");
+
+  host.innerHTML = `<div class="soc-scan-flow-inner">${nodes}</div>`;
+
+  if (els.l3ScanPipelineBadge) {
+    els.l3ScanPipelineBadge.textContent = scanRunning ? "Running" : "Idle";
+    els.l3ScanPipelineBadge.className = `soc-status-badge ${scanRunning ? "soc-status-running" : "soc-status-idle"}`;
+  }
+}
+
+function renderL3PostureChart(history) {
+  const host = els.l3PostureChartHost;
+  if (!host) return;
+
+  const scores = (history || []).map((r) => r.posture_score).filter((v) => v != null);
+  const w = 360;
+  const h = 140;
+  const pad = { t: 12, r: 12, b: 24, l: 36 };
+
+  if (!scores.length) {
+    host.innerHTML = `<div class="soc-chart-empty">
+      <svg width="120" height="40" viewBox="0 0 120 40"><path d="M0 30 L30 25 L60 28 L90 15 L120 20" fill="none" stroke="#58a6ff" stroke-width="1.5" opacity="0.35" stroke-dasharray="4 4"/></svg>
+      <span>No scan history yet — run your first L3 scan to populate posture trend</span>
+    </div>`;
+    return;
+  }
+
+  const min = Math.max(0, Math.min(...scores) - 5);
+  const max = Math.min(100, Math.max(...scores) + 5);
+  const span = max - min || 1;
+  const chartW = w - pad.l - pad.r;
+  const chartH = h - pad.t - pad.b;
+
+  const pts = scores.map((v, i) => {
+    const x = pad.l + (i / Math.max(scores.length - 1, 1)) * chartW;
+    const y = pad.t + chartH - ((v - min) / span) * chartH;
+    return { x, y, v };
+  });
+
+  const line = pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+  const area = `${line} L ${pts[pts.length - 1].x} ${pad.t + chartH} L ${pts[0].x} ${pad.t + chartH} Z`;
+  const dots = pts.map((p) => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="#2dd4bf"/>`).join("");
+  const grid = [0, 0.5, 1]
+    .map((t) => {
+      const y = pad.t + chartH * (1 - t);
+      const val = Math.round(min + span * t);
+      return `<line x1="${pad.l}" y1="${y}" x2="${w - pad.r}" y2="${y}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="4 6"/><text x="${pad.l - 6}" y="${y + 4}" text-anchor="end" fill="#8b949e" font-size="9">${val}</text>`;
+    })
+    .join("");
+
+  host.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" aria-label="Posture score history">
+    <defs><linearGradient id="socPostureGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8957e5" stop-opacity="0.35"/><stop offset="100%" stop-color="#8957e5" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    <path d="${area}" fill="url(#socPostureGrad)"/>
+    <path d="${line}" fill="none" stroke="#58a6ff" stroke-width="2.5" stroke-linecap="round"/>
+    ${dots}
+  </svg>`;
+}
+
+function renderL3ActivityFeed(audit, logTail) {
+  const host = els.l3ActivityFeed;
+  if (!host) return;
+  const events = [];
+
+  (audit || []).slice(0, 12).forEach((a) => {
+    const action = (a.action || "").toLowerCase();
+    let iconCls = "soc-activity-icon-audit";
+    if (/escalat|sla|breach|critical/.test(action)) iconCls = "soc-activity-icon-alert";
+    events.push({
+      time: a.timestamp,
+      iconCls,
+      icon: "◆",
+      text: `${a.action} · ${a.entity_type || "system"}${a.entity_id ? ` (${a.entity_id.slice(0, 8)}…)` : ""}`,
+    });
+  });
+
+  (logTail || [])
+    .slice(-8)
+    .reverse()
+    .forEach((line) => {
+      if (!line.trim()) return;
+      events.push({ time: null, iconCls: "soc-activity-icon-log", icon: "›", text: line.trim().slice(0, 120) });
+    });
+
+  if (!events.length) {
+    host.innerHTML = `<div class="soc-empty-state">No activity yet — start a scan or daemon to see live security events</div>`;
+    return;
+  }
+
+  host.innerHTML = events
+    .slice(0, 16)
+    .map(
+      (ev) => `<div class="soc-activity-item">
+        <div class="soc-activity-icon ${ev.iconCls}">${ev.icon}</div>
+        <div class="soc-activity-body">
+          ${ev.time ? `<div class="soc-activity-time">${escapeHtml(formatTime(ev.time))}</div>` : ""}
+          <div class="soc-activity-text">${escapeHtml(ev.text)}</div>
+        </div>
+      </div>`
+    )
+    .join("");
+}
+
+function renderL3PostureCenter(findings) {
+  const host = els.l3PostureCenterGrid;
+  if (!host) return;
+  const open = (findings || []).filter((f) => ["opened", "updated", "re-opened"].includes(f.status));
+
+  host.innerHTML = L3_POSTURE_WIDGETS.map((w) => {
+    const matched = open.filter(w.match);
+    const count = matched.length;
+    const pct = Math.min(100, count * 18);
+    return `<div class="soc-widget">
+      <div class="soc-widget-head"><span class="soc-widget-title">${escapeHtml(w.title)}</span></div>
+      <div class="soc-widget-count">${count}</div>
+      <div class="soc-widget-bar"><div class="soc-widget-bar-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
+}
+
+function renderL3CriticalFindings(findings) {
+  const host = els.l3CriticalFindingsList;
+  if (!host) return;
+  const critical = (findings || []).filter(
+    (f) =>
+      (f.severity === "critical" || f.severity === "high") &&
+      ["opened", "updated", "re-opened"].includes(f.status)
+  );
+
+  if (!critical.length) {
+    host.innerHTML = `<div class="soc-empty-state">No open critical or high findings — posture looks healthy</div>`;
+    return;
+  }
+
+  host.innerHTML = critical
+    .slice(0, 8)
+    .map((f, i) => {
+      const cve =
+        f.check_id === "dependency_cve"
+          ? escapeHtml(f.title || "CVE detected")
+          : "—";
+      return `<article class="soc-finding-card" data-finding-idx="${i}">
+        <div class="soc-finding-summary" role="button" tabindex="0" aria-expanded="false">
+          <div>
+            <h4>${escapeHtml(f.title || f.check_id)}</h4>
+            <p class="soc-finding-meta"><span class="sev sev-${f.severity}">${escapeHtml(f.severity)}</span> · ${escapeHtml(f.check_id)}</p>
+          </div>
+          <span class="soc-pill soc-pill-critical">${escapeHtml(f.status)}</span>
+        </div>
+        <dl class="soc-finding-details">
+          <dt>Resource ARN</dt><dd>${escapeHtml(f.resource_arn || f.resource_id || "—")}</dd>
+          <dt>Severity</dt><dd>${escapeHtml(f.severity)}</dd>
+          <dt>CVE / Check</dt><dd>${cve}</dd>
+          <dt>Business Impact</dt><dd>${escapeHtml(f.business_impact || "—")}</dd>
+          <dt>Remediation Command</dt><dd>${escapeHtml(f.remediation_command || "—")}</dd>
+        </dl>
+      </article>`;
+    })
+    .join("");
+
+  host.querySelectorAll(".soc-finding-summary").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".soc-finding-card");
+      const open = card.classList.toggle("soc-finding-open");
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+  });
+}
+
+function loadL3SchedulePrefs() {
+  try {
+    const raw = localStorage.getItem(L3_SCHEDULE_STORAGE_KEY);
+    if (!raw) return { mode: "default", intervalHours: 12, intervalMinutes: "" };
+    return JSON.parse(raw);
+  } catch {
+    return { mode: "default", intervalHours: 12, intervalMinutes: "" };
+  }
+}
+
+function saveL3SchedulePrefs(prefs) {
+  try {
+    localStorage.setItem(L3_SCHEDULE_STORAGE_KEY, JSON.stringify(prefs));
+  } catch {
+    /* ignore */
+  }
+}
+
+function getL3ScheduleModeInput() {
+  return document.querySelector('input[name="l3ScheduleMode"]:checked');
+}
+
+function syncL3ScheduleCustomVisibility() {
+  const mode = getL3ScheduleModeInput()?.value || "default";
+  if (els.l3ScheduleCustomFields) {
+    els.l3ScheduleCustomFields.classList.toggle("hidden", mode !== "custom");
+  }
+}
+
+function readL3ScheduleForm() {
+  const mode = getL3ScheduleModeInput()?.value || "default";
+  const hoursRaw = els.l3CustomIntervalHours?.value?.trim();
+  const minsRaw = els.l3CustomIntervalMinutes?.value?.trim();
+  const intervalHours = hoursRaw ? parseFloat(hoursRaw) : null;
+  const intervalMinutes = minsRaw ? parseFloat(minsRaw) : null;
+  saveL3SchedulePrefs({
+    mode,
+    intervalHours: intervalHours || 12,
+    intervalMinutes: minsRaw || "",
+  });
+  return { mode, intervalHours, intervalMinutes };
+}
+
+function buildL3DaemonStartBody() {
+  const { mode, intervalHours, intervalMinutes } = readL3ScheduleForm();
+  const body = { schedule_mode: mode };
+  if (mode === "custom") {
+    if (intervalMinutes && intervalMinutes > 0) {
+      body.interval_minutes = intervalMinutes;
+    } else if (intervalHours && intervalHours > 0) {
+      body.interval_hours = intervalHours;
+    } else {
+      body.interval_hours = 12;
+    }
+  }
+  return body;
+}
+
+function applyL3SchedulePrefsToForm(prefs) {
+  const mode = prefs?.mode === "custom" ? "custom" : "default";
+  document.querySelectorAll('input[name="l3ScheduleMode"]').forEach((input) => {
+    input.checked = input.value === mode;
+  });
+  if (els.l3CustomIntervalHours && prefs?.intervalHours != null) {
+    els.l3CustomIntervalHours.value = String(prefs.intervalHours);
+  }
+  if (els.l3CustomIntervalMinutes) {
+    els.l3CustomIntervalMinutes.value = prefs?.intervalMinutes ?? "";
+  }
+  syncL3ScheduleCustomVisibility();
+}
+
+function renderL3ScheduleUI(daemonSt) {
+  const daemonRunning = daemonSt?.daemon_state === "running";
+  const schedule = daemonSt?.schedule;
+  const label =
+    schedule?.label ||
+    (daemonRunning ? "Every 6 hours (default)" : `Every ${L3_DEFAULT_INTERVAL_HOURS} hours (default)`);
+
+  if (els.l3MetaSchedule) {
+    els.l3MetaSchedule.textContent = daemonRunning ? label : `Not running · selected: ${label}`;
+  }
+
+  if (els.l3SchedulePanel) {
+    els.l3SchedulePanel.classList.toggle("l3-schedule-locked", daemonRunning);
+  }
+
+  if (els.l3ScheduleActiveBadge) {
+    els.l3ScheduleActiveBadge.classList.toggle("hidden", !daemonRunning);
+  }
+
+  if (els.l3ScheduleActiveLabel) {
+    if (daemonRunning) {
+      const next = daemonSt.next_run_time ? formatTime(daemonSt.next_run_time) : "—";
+      els.l3ScheduleActiveLabel.textContent = `Active schedule: ${label} · Next run: ${next}`;
+      els.l3ScheduleActiveLabel.classList.remove("hidden");
+    } else {
+      els.l3ScheduleActiveLabel.classList.add("hidden");
+      els.l3ScheduleActiveLabel.textContent = "";
+    }
+  }
+
+  if (daemonRunning && schedule) {
+    applyL3SchedulePrefsToForm({
+      mode: schedule.mode || "default",
+      intervalHours: schedule.interval_hours ?? L3_DEFAULT_INTERVAL_HOURS,
+      intervalMinutes: schedule.interval_minutes ?? "",
+    });
+  } else if (!daemonRunning) {
+    applyL3SchedulePrefsToForm(loadL3SchedulePrefs());
+  }
+}
+
+function initL3ScheduleControls() {
+  applyL3SchedulePrefsToForm(loadL3SchedulePrefs());
+  document.querySelectorAll('input[name="l3ScheduleMode"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      syncL3ScheduleCustomVisibility();
+      saveL3SchedulePrefs({
+        mode: input.value,
+        intervalHours: parseFloat(els.l3CustomIntervalHours?.value) || 12,
+        intervalMinutes: els.l3CustomIntervalMinutes?.value || "",
+      });
+    });
+  });
+  els.l3CustomIntervalHours?.addEventListener("change", () => {
+    if (els.l3CustomIntervalMinutes) els.l3CustomIntervalMinutes.value = "";
+    readL3ScheduleForm();
+  });
+  els.l3CustomIntervalMinutes?.addEventListener("change", () => {
+    if (els.l3CustomIntervalMinutes?.value) {
+      if (els.l3CustomIntervalHours) els.l3CustomIntervalHours.value = "";
+    }
+    readL3ScheduleForm();
+  });
+}
+
+function updateL3OpsStatus(daemonSt, trend, latest) {
+  const scanRunning = daemonSt.l3_scan_state === "running";
+  const daemonRunning = daemonSt.daemon_state === "running";
+  const health = latest?.health || "unknown";
+
+  if (els.l3ScanStatusBadge) {
+    els.l3ScanStatusBadge.textContent = scanRunning ? "Scanning" : daemonRunning ? "Scheduled" : "Idle";
+    els.l3ScanStatusBadge.className = `soc-status-badge ${
+      scanRunning ? "soc-status-running" : health === "healthy" ? "soc-status-healthy" : "soc-status-idle"
+    }`;
+  }
+
+  if (els.l3AgentHealthDot && els.l3AgentHealthLabel) {
+    els.l3AgentHealthDot.className = "soc-health-dot";
+    if (scanRunning) {
+      els.l3AgentHealthDot.classList.add("soc-health-run");
+      els.l3AgentHealthLabel.textContent = "Agent executing scan pipeline";
+    } else if (health === "healthy") {
+      els.l3AgentHealthDot.classList.add("soc-health-ok");
+      els.l3AgentHealthLabel.textContent = "Agent healthy · last scan passed";
+    } else if (health === "degraded") {
+      els.l3AgentHealthDot.classList.add("soc-health-warn");
+      els.l3AgentHealthLabel.textContent = "Agent degraded · review scan health";
+    } else {
+      els.l3AgentHealthDot.classList.add("soc-health-unknown");
+      els.l3AgentHealthLabel.textContent = daemonRunning ? "Daemon active · awaiting scan" : "Agent standby";
+    }
+  }
+
+  if (els.l3LiveBadge) {
+    els.l3LiveBadge.textContent = scanRunning ? "Live Scan" : daemonRunning ? "Monitoring" : "Live";
+  }
+}
+
 async function loadL3Dashboard() {
   try {
     const [trend, daemonSt] = await Promise.all([
@@ -1571,49 +3197,63 @@ async function loadL3Dashboard() {
     // Determine the latest scan run id for health filtering
     l3LatestScanRunId = trend.latest_scan_run?.id || null;
 
-    const [findings, health, audit] = await Promise.all([
+    const [findings, health, audit, allFindings] = await Promise.all([
       fetchJSON(`/api/l3/findings${buildL3FindingsQuery()}`),
       fetchJSON(`/api/l3/scan-health${l3LatestScanRunId ? `?scan_run_id=${l3LatestScanRunId}` : ""}`),
       fetchJSON("/api/l3/audit?limit=50"),
+      fetchJSON("/api/l3/findings"),
     ]);
 
     renderL3Pipeline(trend, daemonSt, health);
     renderL3AgentMetrics(trend.agent_metrics);
+    renderL3SocSparklines(trend, trend.agent_metrics);
+    renderL3ScanPipelineHero(daemonSt.l3_scan_state === "running", daemonSt.log_tail);
+    renderL3PostureChart(trend.scan_history);
+    renderL3ActivityFeed(audit, daemonSt.log_tail);
+    renderL3PostureCenter(allFindings);
+    renderL3CriticalFindings(allFindings);
+    updateL3OpsStatus(daemonSt, trend, trend.latest_scan_run);
+    renderL3ScheduleUI(daemonSt);
 
     // KPIs
     const hasData = trend.has_scan_data || (trend.pipeline?.total_findings ?? 0) > 0;
     const openCritical = trend.open_critical_count ?? trend.open_findings_by_severity?.critical ?? 0;
     const slaBreaches = trend.sla_breached_count ?? 0;
+    const l3m = trend.agent_metrics?.level3 || {};
 
     if (!hasData) {
-      els.l3PostureScore.textContent = "—";
+      animateSocCounter(els.l3PostureScore, "—");
       els.l3TrendDirection.textContent = "Run first scan";
-      els.l3TrendDirection.className = "kpi-value trend-no_data";
+      els.l3TrendDirection.className = "kpi-value soc-kpi-value trend-no_data";
       if (els.l3TrendHint) {
         els.l3TrendHint.textContent = "";
         els.l3TrendHint.classList.add("hidden");
       }
-      els.l3OpenCritical.textContent = "—";
-      els.l3SlaBreaches.textContent = "—";
+      animateSocCounter(els.l3OpenCritical, "—");
+      animateSocCounter(els.l3SlaBreaches, "—");
+      setSocProgress(els.l3PostureProgress, 0);
     } else {
-      els.l3PostureScore.textContent =
+      const postureText =
         trend.posture_score != null ? `${Math.round(trend.posture_score)}/100` : "—";
+      animateSocCounter(els.l3PostureScore, postureText);
+      setSocProgress(els.l3PostureProgress, trend.posture_score ?? 0);
       const dir = trend.trend_direction || "—";
       els.l3TrendDirection.textContent = formatL3TrendLabel(dir, trend.posture_score);
-      els.l3TrendDirection.className = `kpi-value trend-${dir}`;
+      els.l3TrendDirection.className = `kpi-value soc-kpi-value trend-${dir}`;
       const hint = l3TrendHintText(trend);
       if (els.l3TrendHint) {
         els.l3TrendHint.textContent = hint || "";
         els.l3TrendHint.classList.toggle("hidden", !hint);
         els.l3TrendHint.classList.toggle("kpi-hint-warn", Boolean(trend.data_inconsistent));
       }
-      els.l3OpenCritical.textContent = openCritical;
-      els.l3SlaBreaches.textContent = slaBreaches;
+      animateSocCounter(els.l3OpenCritical, String(openCritical));
+      animateSocCounter(els.l3SlaBreaches, String(slaBreaches));
     }
 
     const daemonRunning = daemonSt.daemon_state === "running";
     const l3ScanRunning = daemonSt.l3_scan_state === "running";
     els.l3DaemonStatus.textContent = daemonRunning ? "Running" : "Stopped";
+    els.l3DaemonStatus.className = `kpi-value soc-kpi-value ${daemonRunning ? "text-healthy" : ""}`;
     if (els.stopDaemonBtn) els.stopDaemonBtn.disabled = !daemonRunning;
     if (els.startDaemonBtn) els.startDaemonBtn.disabled = daemonRunning || l3ScanRunning;
     if (els.runL3OnceBtn) els.runL3OnceBtn.disabled = daemonRunning || l3ScanRunning;
@@ -1626,33 +3266,41 @@ async function loadL3Dashboard() {
       els.l3MetaPosture.textContent = latest.posture_score != null ? `${latest.posture_score}/100` : "—";
       els.l3MetaLifecycle.textContent = `${latest.new_findings ?? 0} new / ${latest.updated_findings ?? 0} updated`;
       els.l3MetaStarted.textContent = formatTime(latest.started_at);
+      if (els.l3MetaDuration) {
+        els.l3MetaDuration.textContent =
+          latest.duration_seconds != null ? `${Math.round(latest.duration_seconds)}s` : "—";
+      }
     } else {
       els.l3MetaHealth.textContent = "—";
       els.l3MetaPosture.textContent = "—";
       els.l3MetaLifecycle.textContent = "—";
       els.l3MetaStarted.textContent = "—";
+      if (els.l3MetaDuration) els.l3MetaDuration.textContent = "—";
     }
 
     els.l3MetaNextRun.textContent = daemonSt.next_run_time ? formatTime(daemonSt.next_run_time) : "—";
     els.l3MetaSlack.textContent = trend.slack_configured ? "Configured" : "Not configured";
-
-    // Posture history
-    if (trend.scan_history?.length) {
-      els.l3TrendHistory.innerHTML = trend.scan_history
-        .slice(-10)
-        .map((r) =>
-          `<div class="trend-history-row">
-            <span>${formatTime(r.timestamp)}</span>
-            <span>${r.posture_score ?? "N/A"}/100 · ${r.health || "?"} · +${r.findings?.new ?? 0} new</span>
-          </div>`
-        )
-        .join("");
-    } else {
-      els.l3TrendHistory.textContent = "No scan history yet.";
+    if (els.l3MetaSuccessRate) {
+      const rate = l3m.scan_reliability_rate;
+      els.l3MetaSuccessRate.textContent =
+        rate != null && l3m.total_scan_runs
+          ? `${Math.round(rate * 100)}% (${l3m.successful_scan_runs}/${l3m.total_scan_runs})`
+          : "—";
     }
 
-    // Activity log
-    if (daemonSt.log_tail?.length) {
+    // Keep hidden legacy container in sync for any code that reads it
+    if (els.l3TrendHistory && trend.scan_history?.length) {
+      els.l3TrendHistory.innerHTML = trend.scan_history
+        .slice(-10)
+        .map(
+          (r) =>
+            `<div class="trend-history-row"><span>${formatTime(r.timestamp)}</span><span>${r.posture_score ?? "N/A"}/100</span></div>`
+        )
+        .join("");
+    }
+
+    // Activity log (hidden raw)
+    if (daemonSt.log_tail?.length && els.l3LogOutput) {
       els.l3LogOutput.textContent = daemonSt.log_tail.join("\n");
     }
 
@@ -1733,23 +3381,24 @@ function renderL3AgentMetrics(agentMetrics) {
   const l3 = agentMetrics?.level3 || {};
 
   if (els.l3MetricF1) {
-    els.l3MetricF1.textContent = d.f1_score != null ? d.f1_score.toFixed(2) : "—";
+    const f1Text = d.f1_score != null ? d.f1_score.toFixed(2) : "—";
+    els.l3MetricF1.textContent = f1Text;
+    setSocProgress(els.l3F1Progress, d.f1_score != null ? d.f1_score * 100 : 0);
   }
   if (els.l3MetricSlaCompliance) {
-    els.l3MetricSlaCompliance.textContent =
-      l3.sla_compliance_rate != null
-        ? `${Math.round(l3.sla_compliance_rate * 100)}%`
-        : "—";
+    const pct = l3.sla_compliance_rate != null ? `${Math.round(l3.sla_compliance_rate * 100)}%` : "—";
+    els.l3MetricSlaCompliance.textContent = pct;
+    setSocProgress(els.l3SlaComplianceProgress, l3.sla_compliance_rate != null ? l3.sla_compliance_rate * 100 : 0);
   }
   if (els.l3MetricReliability) {
-    els.l3MetricReliability.textContent =
-      l3.scan_reliability_rate != null
-        ? `${Math.round(l3.scan_reliability_rate * 100)}%`
-        : "—";
+    const pct = l3.scan_reliability_rate != null ? `${Math.round(l3.scan_reliability_rate * 100)}%` : "—";
+    els.l3MetricReliability.textContent = pct;
+    setSocProgress(els.l3ReliabilityProgress, l3.scan_reliability_rate != null ? l3.scan_reliability_rate * 100 : 0);
   }
   if (els.l3MetricResolution) {
-    els.l3MetricResolution.textContent =
-      l3.resolution_rate != null ? `${Math.round(l3.resolution_rate * 100)}%` : "—";
+    const pct = l3.resolution_rate != null ? `${Math.round(l3.resolution_rate * 100)}%` : "—";
+    els.l3MetricResolution.textContent = pct;
+    setSocProgress(els.l3ResolutionProgress, l3.resolution_rate != null ? l3.resolution_rate * 100 : 0);
   }
 }
 
@@ -1762,6 +3411,7 @@ function renderL3Pipeline(trend, daemonSt, health) {
   const scanRuns = pipe.scan_run_count ?? 0;
   const l3m = agentMetrics?.level3 || {};
   const det = agentMetrics?.detection || {};
+  const schedule = daemonSt.schedule;
 
   let scanMetric = "No scans yet — click Run L3 Once";
   if (scanRunning) {
@@ -1772,7 +3422,7 @@ function renderL3Pipeline(trend, daemonSt, health) {
     if (l3m.total_scan_runs) {
       scanMetric += ` · reliability ${Math.round((l3m.scan_reliability_rate || 0) * 100)}% (${l3m.successful_scan_runs}/${l3m.total_scan_runs})`;
     }
-    if (daemonRunning) scanMetric += ` · Daemon ON · next: ${next}`;
+    if (daemonRunning) scanMetric += ` · Daemon ON · ${schedule?.label || "every 6h"} · next: ${next}`;
     else scanMetric += " · Daemon OFF";
   }
   if (els.l3MetricScans) els.l3MetricScans.textContent = scanMetric;
@@ -1954,8 +3604,19 @@ async function runL3Once() {
 
 async function startDaemon() {
   try {
-    await fetchJSON("/api/l3/daemon/start", { method: "POST" });
-    showToast("Daemon started — scans will run automatically");
+    const body = buildL3DaemonStartBody();
+    await fetchJSON("/api/l3/daemon/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const label =
+      body.schedule_mode === "custom"
+        ? body.interval_minutes
+          ? `every ${body.interval_minutes} min`
+          : `every ${body.interval_hours}h`
+        : "every 6 hours (default)";
+    showToast(`Daemon started — scans ${label}`);
     setScanBadge("running", "Daemon Active");
     startL3Polling();
     await loadL3Dashboard();
@@ -2083,6 +3744,9 @@ bindClick(els.cleanupBtn, () => {
 });
 
 bindClick(els.runScanL1Btn, () => startScan(1));
+if (els.runScanL1BtnSecondary) els.runScanL1BtnSecondary.addEventListener("click", () => startScan(1));
+if (els.themeToggle) els.themeToggle.addEventListener("click", toggleTheme);
+
 bindClick(els.runScanL2Btn, () => startScan(2));
 if (els.runL3OnceBtn) els.runL3OnceBtn.addEventListener("click", () => runL3Once());
 if (els.startDaemonBtn) els.startDaemonBtn.addEventListener("click", () => startDaemon());
@@ -2145,6 +3809,8 @@ async function resetL3Data() {
 }
 
 if (els.resetL3Btn) els.resetL3Btn.addEventListener("click", () => resetL3Data());
+bindClick(els.exportReportPdfBtn, () => exportReportAsPdf());
+
 bindClick(els.clearReportsBtn, () => clearAllReports());
 
 bindClick(els.refreshBtn, () => refreshCurrentView());
@@ -2152,6 +3818,12 @@ bindClick(els.refreshBtn, () => refreshCurrentView());
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 async function init() {
+  initTheme();
+  initReportHistoryCollapse();
+  initTerminalClientInfo();
+  initL3ScheduleControls();
+  resetL1PipelineTrials();
+  ensureL2PipelineViz();
   await updateCredentials();
   try {
     const health = await fetchJSON("/api/health");

@@ -34,12 +34,19 @@ def _reports_dir() -> Path:
     return REPORTS_DIR
 
 
+def _refresh_report_metrics(data: dict[str, Any]) -> dict[str, Any]:
+    from metrics.calculator import MetricsCalculator
+
+    return MetricsCalculator().refresh_report_metrics(data)
+
+
 def list_reports() -> list[ReportSummary]:
     """List all JSON reports, newest first."""
     summaries: list[ReportSummary] = []
     for path in sorted(_reports_dir().glob("findings_report_*.json"), reverse=True):
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+            data = _refresh_report_metrics(data)
             metrics = data.get("metrics") or {}
             detection = metrics.get("detection") or {}
             summaries.append(
@@ -72,7 +79,8 @@ def load_report(filename: str) -> dict[str, Any] | None:
     path = _reports_dir() / filename
     if not path.exists() or not path.name.startswith("findings_report_"):
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return _refresh_report_metrics(data)
 
 
 def load_latest_report(level: int | None = None) -> dict[str, Any] | None:

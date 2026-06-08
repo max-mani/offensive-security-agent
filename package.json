@@ -1,0 +1,12 @@
+{
+  "name": "offensive-security-agent-dashboard",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i dashboard/static/src/input.css -o dashboard/static/app.css --minify",
+    "watch:css": "tailwindcss -i dashboard/static/src/input.css -o dashboard/static/app.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.11",
+    "tailwindcss": "^4.1.11"
+  }
+}

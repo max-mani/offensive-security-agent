@@ -1,189 +1,210 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Aivar Offensive Security Agent</title>
+  <script>
+    (function () {
+      var t = localStorage.getItem("theme");
+      if (t === "light") document.documentElement.classList.remove("dark");
+      else document.documentElement.classList.add("dark");
+    })();
+  </script>
   <link rel="stylesheet" href="/static/app.css" />
 </head>
 <body>
-  <header class="header">
-    <div class="header-left">
-      <h1>Aivar Offensive Security Agent</h1>
-      <p id="pageSubtitle" class="subtitle">Level 1 — AWS Infrastructure Scanner</p>
+  <header class="sticky top-0 z-[100] flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 bg-white px-8 py-4 dark:border-zinc-800 dark:bg-zinc-950 max-md:px-4">
+    <div>
+      <h1 class="text-lg font-semibold tracking-tight">Aivar Offensive Security Agent</h1>
+      <p id="pageSubtitle" class="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">Level 1 — AWS Infrastructure Scanner</p>
     </div>
-    <div class="header-actions">
+    <div class="flex items-center gap-3">
+      <button id="themeToggle" type="button" class="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-zinc-100 text-sm dark:border-zinc-700 dark:bg-zinc-900" title="Toggle dark/light mode" aria-label="Toggle theme">
+        <span id="themeIconDark" class="hidden dark:inline">☀</span>
+        <span id="themeIconLight" class="inline dark:hidden">☾</span>
+      </button>
       <span id="scanStatusBadge" class="badge badge-idle">Idle</span>
       <button id="refreshBtn" class="btn btn-secondary">Refresh</button>
     </div>
   </header>
 
-  <nav class="level-nav" aria-label="Scan level">
+  <nav class="flex gap-0 border-b border-zinc-200 bg-white px-8 dark:border-zinc-800 dark:bg-zinc-950" aria-label="Scan level">
     <button type="button" class="level-tab level-tab-active" data-level="1">
       <span class="level-tab-num">1</span>
-      <span class="level-tab-label">AWS Infrastructure</span>
+      <span>AWS Infrastructure</span>
     </button>
     <button type="button" class="level-tab" data-level="2">
       <span class="level-tab-num">2</span>
-      <span class="level-tab-label">Multi-Domain</span>
+      <span>Multi-Domain</span>
     </button>
     <button type="button" class="level-tab" data-level="3">
       <span class="level-tab-num">3</span>
-      <span class="level-tab-label">Continuous</span>
+      <span>Continuous</span>
     </button>
   </nav>
 
-  <!-- Demo job panel (L1 setup/verify/cleanup only — not L1/L2 scans) -->
-  <div id="activeTaskPanel" class="active-task-panel hidden">
-    <div class="active-task-header">
-      <span class="active-task-spinner" aria-hidden="true"></span>
-      <span id="activeTaskTitle" class="active-task-title">Working...</span>
-    </div>
-    <ol id="pipelineSteps" class="pipeline-steps"></ol>
-    <pre id="logOutput" class="task-log"></pre>
-  </div>
-
-  <main class="container">
+  <main class="mx-auto max-w-[1400px] px-0 pb-12 max-md:px-0">
 
     <!-- ═══════════════════════════════ LEVEL 1 ═══════════════════════════════ -->
-    <div id="level1View" class="level-view">
-      <section class="level-hero level-hero-l1">
-        <h2>Level 1 — AWS Infrastructure Scanner</h2>
-        <p>13 boto3 checks across IAM, S3, EC2, and CloudTrail. Findings are LLM-enriched with business impact analysis and step-by-step remediation commands.</p>
+    <div id="level1View" class="mb-0">
+
+      <!-- ── Dark overview section ── -->
+      <section class="bg-zinc-950 px-8 py-10 text-white max-md:px-4">
+        <div class="mb-10">
+          <h2 class="text-3xl font-bold tracking-tight md:text-4xl">Infrastructure overview</h2>
+        </div>
+
+        <div class="grid items-stretch gap-6 lg:grid-cols-2 lg:gap-6">
+          <!-- Check category breakdown -->
+          <div class="flex min-h-[320px] flex-col">
+            <p class="mb-4 text-xs tracking-widest text-zinc-500 uppercase">check category breakdown</p>
+            <div id="l1CheckBreakdown" class="l1-pie-chart-host flex w-full flex-1 flex-col justify-center">
+              <p class="text-sm text-zinc-500">Run a scan to see findings by AWS service.</p>
+            </div>
+          </div>
+
+          <!-- Main assets grid -->
+          <div class="flex min-h-[280px] flex-col">
+            <p class="mb-4 text-xs tracking-widest text-zinc-500 uppercase">main assets</p>
+            <div class="grid flex-1 grid-cols-2 gap-3">
+              <article class="l1-asset-card">
+                <div class="mb-6 flex items-start justify-between">
+                  <span class="text-zinc-500" aria-hidden="true">◎</span>
+                  <button type="button" class="text-zinc-600 hover:text-zinc-400" aria-label="Options">⋮</button>
+                </div>
+                <p id="l1AssetTotal" class="text-4xl font-bold">—</p>
+                <p class="mt-1 text-sm text-zinc-400">total findings</p>
+                <p class="mt-4 text-xs text-zinc-500">checks: <span id="l1AssetChecksSub">13 enabled</span></p>
+              </article>
+              <article class="l1-asset-card">
+                <div class="mb-6 flex items-start justify-between">
+                  <span class="text-orange-400" aria-hidden="true">!</span>
+                  <button type="button" class="text-zinc-600 hover:text-zinc-400" aria-label="Options">⋮</button>
+                </div>
+                <p id="l1AssetCritical" class="text-4xl font-bold text-orange-400">—</p>
+                <p class="mt-1 text-sm text-zinc-400">critical findings</p>
+                <p class="mt-4 text-xs text-zinc-500">high: <span id="l1AssetHighSub">—</span></p>
+              </article>
+              <article class="l1-asset-card">
+                <div class="mb-6 flex items-start justify-between">
+                  <span class="text-teal-400" aria-hidden="true">⊞</span>
+                  <button type="button" class="text-zinc-600 hover:text-zinc-400" aria-label="Options">⋮</button>
+                </div>
+                <p id="l1AssetResources" class="text-4xl font-bold">—</p>
+                <p class="mt-1 text-sm text-zinc-400">resources scanned</p>
+                <p class="mt-4 text-xs text-zinc-500">region: <span id="l1AssetRegionSub">—</span></p>
+              </article>
+              <article class="l1-asset-card">
+                <div class="mb-6 flex items-start justify-between">
+                  <span class="text-violet-400" aria-hidden="true">✓</span>
+                  <button type="button" class="text-zinc-600 hover:text-zinc-400" aria-label="Options">⋮</button>
+                </div>
+                <p id="l1AssetHealth" class="text-4xl font-bold capitalize">—</p>
+                <p class="mt-1 text-sm text-zinc-400">scan health</p>
+                <p class="mt-4 text-xs text-zinc-500">duration: <span id="l1AssetDurationSub">—</span></p>
+              </article>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section class="demo-panel">
-        <div class="demo-panel-header">
-          <h3>Demo Environment</h3>
-          <p class="demo-desc">Use the step-by-step flow to create intentional AWS misconfigs, verify them, then scan — or run the full pipeline in one click.</p>
-        </div>
-
-        <div class="credential-badges">
-          <span id="scannerBadge" class="cred-badge">Scanner: checking...</span>
-          <span id="adminBadge" class="cred-badge">Admin: checking...</span>
-        </div>
-
-        <div class="demo-flow">
-          <div class="demo-step-card">
-            <span class="demo-step-num">1</span>
-            <div class="demo-step-body">
-              <strong>Create Misconfigs</strong>
-              <p>Spin up intentional AWS misconfigs using aivar-admin credentials.</p>
-              <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
-            </div>
+      <!-- ── Demo Environment ── -->
+      <section class="border-b border-zinc-200 bg-white px-8 py-8 dark:border-zinc-800 dark:bg-zinc-950 max-md:px-4">
+        <div class="mb-5 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-semibold tracking-tight">Demo Environment</h2>
+            <p class="mt-1 text-sm text-zinc-500">Create misconfigs → verify → scan, or run the full pipeline.</p>
           </div>
-          <div class="demo-flow-arrow" aria-hidden="true">→</div>
-          <div class="demo-step-card">
-            <span class="demo-step-num">2</span>
-            <div class="demo-step-body">
-              <strong>Verify Resources</strong>
-              <p>Confirm the scanner account can see the created resources.</p>
-              <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
-            </div>
-          </div>
-          <div class="demo-flow-arrow" aria-hidden="true">→</div>
-          <div class="demo-step-card">
-            <span class="demo-step-num">3</span>
-            <div class="demo-step-body">
-              <strong>Run Scan</strong>
-              <p>Agent runs 13 checks and produces LLM-enriched findings.</p>
-              <button id="runScanL1Btn" class="btn btn-primary">Run Scan Only</button>
-            </div>
+          <div class="flex flex-wrap gap-2">
+            <span id="scannerBadge" class="cred-badge">Scanner: checking...</span>
+            <span id="adminBadge" class="cred-badge">Admin: checking...</span>
           </div>
         </div>
 
-        <div class="demo-actions-row">
-          <button id="fullDemoBtn" class="btn btn-accent" title="Setup → Verify → Scan in one click">
-            ⚡ Run Full Level 1 Demo
-          </button>
+        <div class="flex flex-wrap gap-2">
+          <button id="setupBtn" class="btn btn-warn">Create Misconfigs</button>
+          <button id="verifyBtn" class="btn btn-secondary">Verify Resources</button>
+          <button id="runScanL1Btn" class="btn btn-primary">Run Scan Only</button>
+          <button id="fullDemoBtn" class="btn btn-accent" title="Setup → Verify → Scan in one click">Run Full Demo</button>
           <button id="cleanupBtn" class="btn btn-danger">Delete Test Resources</button>
         </div>
+        <p class="demo-hint mt-3 text-xs text-zinc-500">Requires <code>.env</code> and <code>.env.admin</code>. See README Section 7.</p>
 
-        <p class="demo-hint">Requires <code>.env</code> (scanner creds) and <code>.env.admin</code> (aivar-admin). See README Section 7.</p>
-      </section>
+        <!-- Inline job progress (setup / verify / cleanup / full demo) -->
+        <div id="activeTaskPanel" class="l1-job-progress mt-5 hidden rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
+          <div class="mb-4 flex items-center gap-2.5">
+            <span class="active-task-spinner" aria-hidden="true"></span>
+            <span id="activeTaskTitle" class="text-sm font-semibold text-accent">Working...</span>
+          </div>
+          <div class="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+            <div class="l1-job-checklist min-w-0">
+              <p class="mb-2 text-[0.65rem] font-semibold tracking-widest text-zinc-500 uppercase">Progress</p>
+              <ol id="pipelineSteps" class="pipeline-steps flex list-none flex-col gap-0.5 p-0"></ol>
+            </div>
+            <div class="aws-terminal min-w-0">
+              <div class="aws-terminal-client-bar">
+                <span class="aws-terminal-client-label">Allowed session</span>
+                <span class="terminal-client-info" title="Your IP and internet provider">Detecting IP…</span>
+              </div>
+              <div class="aws-terminal-body-wrap">
+                <pre id="logOutput" class="aws-terminal-log"></pre>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <section id="l1DemoPipelinePanel" class="l3-pipeline-section level-scan-pipeline hidden">
-        <h3>Full Demo Pipeline</h3>
-        <p class="l3-pipeline-desc">Setup → Verify → Scan → Load report — all in one click.</p>
-        <p id="l1DemoPipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
-        <div class="l3-pipeline">
-          <div class="l3-pipeline-step" id="demoStepSetup">
-            <div class="l3-step-num">1</div>
-            <div class="l3-step-body">
-              <h4>Create Misconfigs</h4>
-              <p>Spin up 5 intentional AWS misconfigs using admin credentials.</p>
-              <div class="l3-step-metric" id="demoMetricSetup">Waiting…</div>
+        <!-- Full demo pipeline (checklist + terminal) -->
+        <div id="l1DemoPipelinePanel" class="l1-job-progress mt-5 hidden rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-900">
+          <div class="mb-4 flex items-center gap-2.5">
+            <span class="active-task-spinner" aria-hidden="true"></span>
+            <div>
+              <h3 class="text-sm font-semibold text-accent">Full Demo Pipeline</h3>
+              <p class="text-xs text-zinc-500">Setup → Verify → Scan → Load report — all in one click.</p>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
-          <div class="l3-pipeline-step" id="demoStepVerify">
-            <div class="l3-step-num">2</div>
-            <div class="l3-step-body">
-              <h4>Verify Resources</h4>
-              <p>Confirm the scanner account can see all test resources.</p>
-              <div class="l3-step-metric" id="demoMetricVerify">Waiting…</div>
+          <p id="l1DemoPipelineStatus" class="mb-3 hidden text-sm font-medium text-violet-400" aria-live="polite"></p>
+          <div class="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
+            <div class="l1-job-checklist min-w-0">
+              <p class="mb-2 text-[0.65rem] font-semibold tracking-widest text-zinc-500 uppercase">Progress</p>
+              <ol id="demoPipelineChecklist" class="pipeline-steps flex list-none flex-col gap-0.5 p-0"></ol>
             </div>
-          </div>
-          <div class="l3-pipeline-arrow">↓</div>
-          <div class="l3-pipeline-step" id="demoStepScan">
-            <div class="l3-step-num">3</div>
-            <div class="l3-step-body">
-              <h4>Run Security Scan</h4>
-              <p>Level 1 AWS scan — hands off to the scan pipeline below.</p>
-              <div class="l3-step-metric" id="demoMetricScan">Waiting…</div>
-            </div>
-          </div>
-          <div class="l3-pipeline-arrow">↓</div>
-          <div class="l3-pipeline-step" id="demoStepDone">
-            <div class="l3-step-num">4</div>
-            <div class="l3-step-body">
-              <h4>Load Findings</h4>
-              <p>Open the findings table and report history.</p>
-              <div class="l3-step-metric" id="demoMetricDone">Waiting…</div>
+            <div class="aws-terminal min-w-0">
+              <div class="aws-terminal-client-bar">
+                <span class="aws-terminal-client-label">Allowed session</span>
+                <span class="terminal-client-info" title="Your IP and internet provider">Detecting IP…</span>
+              </div>
+              <div class="aws-terminal-body-wrap">
+                <pre id="l1DemoPipelineLog" class="aws-terminal-log"></pre>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="l1ScanPipelinePanel" class="l3-pipeline-section level-scan-pipeline">
-        <h3>Scan Pipeline</h3>
-        <p class="l3-pipeline-desc">Level 1 flows through 4 stages — configuration, AWS checks, LLM enrichment, and report generation.</p>
+      <section id="l1ScanPipelinePanel" class="level-scan-pipeline l3-pipeline-section mx-8 mt-6 mb-6 hidden max-w-[640px] max-md:mx-4">
+        <h3 class="mb-1 text-[0.95rem]">Scan Pipeline</h3>
+        <p class="l3-pipeline-desc mb-2 max-w-[600px] text-xs text-zinc-500">Level 1 flows through 4 stages — configuration, AWS checks, LLM enrichment, and report generation.</p>
         <p id="l1ScanPipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
-        <div class="l3-pipeline">
+        <div class="l3-pipeline flex flex-col gap-0">
           <div class="l3-pipeline-step" id="l1StepConfig">
             <div class="l3-step-num">1</div>
-            <div class="l3-step-body">
-              <h4>Load Configuration</h4>
-              <p>Read checklist, AWS region, and enabled security checks.</p>
-              <div class="l3-step-metric" id="l1MetricConfig">Ready — click Run Scan</div>
-            </div>
+            <div class="l3-step-body"><h4>Load Configuration</h4><p>Read checklist, AWS region, and enabled security checks.</p><div class="l3-step-metric" id="l1MetricConfig">Ready — click Run Scan</div></div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-arrow py-0.5 pl-2 text-center text-sm text-purple opacity-55">↓</div>
           <div class="l3-pipeline-step" id="l1StepAws">
             <div class="l3-step-num">2</div>
-            <div class="l3-step-body">
-              <h4>AWS Infrastructure</h4>
-              <p>13 boto3 checks across IAM, S3, EC2, and CloudTrail.</p>
-              <div class="l3-step-metric" id="l1MetricAws">Waiting for scan</div>
-            </div>
+            <div class="l3-step-body"><h4>AWS Infrastructure</h4><p>13 boto3 checks across IAM, S3, EC2, and CloudTrail.</p><div class="l3-step-metric" id="l1MetricAws">Waiting for scan</div></div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-arrow py-0.5 pl-2 text-center text-sm text-purple opacity-55">↓</div>
           <div class="l3-pipeline-step" id="l1StepLlm">
             <div class="l3-step-num">3</div>
-            <div class="l3-step-body">
-              <h4>LLM Enrichment</h4>
-              <p>Business impact, remediation steps, and severity validation.</p>
-              <div class="l3-step-metric" id="l1MetricLlm">Waiting for scan</div>
-            </div>
+            <div class="l3-step-body"><h4>LLM Enrichment</h4><p>Business impact, remediation steps, and severity validation.</p><div class="l3-step-metric" id="l1MetricLlm">Waiting for scan</div></div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l3-pipeline-arrow py-0.5 pl-2 text-center text-sm text-purple opacity-55">↓</div>
           <div class="l3-pipeline-step" id="l1StepReports">
             <div class="l3-step-num">4</div>
-            <div class="l3-step-body">
-              <h4>Generate Reports</h4>
-              <p>Write JSON and Markdown findings reports to <code>reports/</code>.</p>
-              <div class="l3-step-metric" id="l1MetricReports">Waiting for scan</div>
-            </div>
+            <div class="l3-step-body"><h4>Generate Reports</h4><p>Write JSON and Markdown findings reports to <code class="rounded bg-zinc-200 px-1.5 py-0.5 text-xs dark:bg-zinc-800">reports/</code>.</p><div class="l3-step-metric" id="l1MetricReports">Waiting for scan</div></div>
           </div>
         </div>
         <pre id="l1ScanLog" class="level-scan-log hidden"></pre>
@@ -191,24 +212,27 @@
     </div>
 
     <!-- ═══════════════════════════════ LEVEL 2 ═══════════════════════════════ -->
-    <div id="level2View" class="level-view hidden">
-      <section class="level-hero level-hero-l2">
-        <h2>Level 2 — Multi-Domain Scanner</h2>
-        <p>Level 1 plus API endpoint security, OSV dependency CVEs, and secrets scanning. Findings are deduplicated across domains and ranked by business impact.</p>
-        <ul class="level-feature-list">
+    <div id="level2View" class="mb-4 hidden px-8 max-md:px-4">
+      <section class="level-hero level-hero-l2 mb-6 rounded-lg border border-border bg-surface p-6">
+        <h2 class="mb-2 text-xl">Level 2 — Multi-Domain Scanner</h2>
+        <p class="mb-2 max-w-[720px] text-sm text-muted">Level 1 plus API endpoint security, OSV dependency CVEs, and secrets scanning. Findings are deduplicated across domains and ranked by business impact.</p>
+        <ul class="level-feature-list my-3 ml-5 text-sm leading-relaxed text-muted">
           <li>6 API checks — headers, CORS, rate-limit, auth bypass, error exposure, HTTP methods</li>
           <li>OSV dependency CVE scan on <code>test_vulnerable_requirements.txt</code></li>
           <li>Secrets regex scan on <code>test_secrets.env</code></li>
           <li>Cross-domain deduplication + LLM-powered impact ranking</li>
         </ul>
-        <button id="runScanL2Btn" class="btn btn-primary">Run Level 2 Scan</button>
+        <button id="runScanL2Btn" class="btn btn-primary mt-2">Run Level 2 Scan</button>
       </section>
 
-      <section id="l2ScanPipelinePanel" class="l3-pipeline-section level-scan-pipeline">
-        <h3>Scan Pipeline</h3>
-        <p class="l3-pipeline-desc">Level 2 flows through 9 stages — four scan domains, enrichment, dedup, ranking, and reports.</p>
+      <section id="l2ScanPipelinePanel" class="level-scan-pipeline l3-pipeline-section l2-pipeline-panel mt-5 mb-6" data-l2-stage="0" data-l2-scanning="false">
+        <h3 class="mb-1 text-[0.95rem]">Scan Pipeline</h3>
+        <p class="l3-pipeline-desc mb-4 max-w-[720px] text-xs text-muted">Level 2 flows through 9 stages — four scan domains, enrichment, dedup, ranking, and reports.</p>
         <p id="l2ScanPipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
-        <div class="l3-pipeline">
+
+        <div class="l2-pipeline-layout">
+          <div class="l2-pipeline-steps-col">
+        <div class="l3-pipeline l2-pipeline-steps flex flex-col gap-0">
           <div class="l3-pipeline-step" id="l2StepConfig">
             <div class="l3-step-num">1</div>
             <div class="l3-step-body">
@@ -217,7 +241,7 @@
               <div class="l3-step-metric" id="l2MetricConfig">Ready — click Run Level 2 Scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="0" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepAws">
             <div class="l3-step-num">2</div>
             <div class="l3-step-body">
@@ -226,7 +250,7 @@
               <div class="l3-step-metric" id="l2MetricAws">Waiting for scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="1" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepApi">
             <div class="l3-step-num">3</div>
             <div class="l3-step-body">
@@ -235,7 +259,7 @@
               <div class="l3-step-metric" id="l2MetricApi">Waiting for scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="2" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepDeps">
             <div class="l3-step-num">4</div>
             <div class="l3-step-body">
@@ -244,7 +268,7 @@
               <div class="l3-step-metric" id="l2MetricDeps">Waiting for scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="3" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepSecrets">
             <div class="l3-step-num">5</div>
             <div class="l3-step-body">
@@ -253,7 +277,7 @@
               <div class="l3-step-metric" id="l2MetricSecrets">Waiting for scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="4" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepLlm">
             <div class="l3-step-num">6</div>
             <div class="l3-step-body">
@@ -262,7 +286,7 @@
               <div class="l3-step-metric" id="l2MetricLlm">Waiting for scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="5" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepDedup">
             <div class="l3-step-num">7</div>
             <div class="l3-step-body">
@@ -271,7 +295,7 @@
               <div class="l3-step-metric" id="l2MetricDedup">Waiting for scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="6" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepRanking">
             <div class="l3-step-num">8</div>
             <div class="l3-step-body">
@@ -280,86 +304,170 @@
               <div class="l3-step-metric" id="l2MetricRanking">Waiting for scan</div>
             </div>
           </div>
-          <div class="l3-pipeline-arrow">↓</div>
+          <div class="l2-pipeline-connector is-idle" data-connector="7" aria-hidden="true"><span class="l2-pipeline-connector-line"></span></div>
           <div class="l3-pipeline-step" id="l2StepReports">
             <div class="l3-step-num">9</div>
             <div class="l3-step-body">
               <h4>Generate Reports</h4>
-              <p>Write Level 2 JSON and Markdown reports to <code>reports/</code>.</p>
+              <p>Write Level 2 JSON and Markdown reports to <code class="rounded bg-surface2 px-1.5 py-0.5 text-xs">reports/</code>.</p>
               <div class="l3-step-metric" id="l2MetricReports">Waiting for scan</div>
             </div>
           </div>
         </div>
         <pre id="l2ScanLog" class="level-scan-log hidden"></pre>
+          </div>
+
+          <!-- Right: enterprise live pipeline canvas -->
+          <aside class="l2-live-pipeline-aside l2-pipeline-flow-viz-side">
+            <div class="l2-live-pipeline-header">
+              <p class="l2-flow-viz-title">Live Pipeline Flow</p>
+              <div class="l2-live-toolbar">
+                <button type="button" id="l2VizZoomIn" class="l2-live-tool-btn" title="Zoom in" aria-label="Zoom in">+</button>
+                <button type="button" id="l2VizZoomOut" class="l2-live-tool-btn" title="Zoom out" aria-label="Zoom out">−</button>
+                <button type="button" id="l2VizReset" class="l2-live-tool-btn" title="Reset view" aria-label="Reset view">⟲</button>
+              </div>
+            </div>
+            <div id="l2PipelineVizHost"></div>
+          </aside>
+        </div>
       </section>
     </div>
 
     <!-- ═══════════════════════════════ LEVEL 3 ═══════════════════════════════ -->
-    <div id="level3View" class="level-view hidden">
+    <div id="level3View" class="l3-soc-view mb-4 hidden px-8 max-md:px-4">
 
-      <section class="level-hero level-hero-l3">
-        <h2>Level 3 — Autonomous Continuous Scanning</h2>
-        <p>Level 3 runs as a <strong>persistent service</strong>. It remembers findings across scans, tracks their lifecycle (opened → updated → resolved → re-opened), escalates Criticals to Slack, enforces SLA deadlines, and produces a security posture score over time.</p>
-        <div class="l3-controls">
-          <button id="runL3OnceBtn" class="btn btn-primary">Run L3 Once</button>
-          <button id="startDaemonBtn" class="btn btn-accent">Start Continuous Scans</button>
-          <button id="stopDaemonBtn" class="btn btn-danger" disabled>Stop Daemon</button>
-          <button id="refreshL3Btn" class="btn btn-secondary">Refresh</button>
+      <section class="soc-glass soc-hero level-hero level-hero-l3 mb-8">
+        <div class="soc-hero-glow" aria-hidden="true"></div>
+        <div class="soc-hero-inner">
+          <div class="soc-hero-badge">Security Operations Center</div>
+          <h2 class="soc-hero-title">Level 3 — Autonomous Continuous Scanning</h2>
+          <p class="soc-hero-desc">Persistent service with lifecycle tracking, SLA enforcement, Slack escalation, and posture scoring over time.</p>
+          <div class="l3-controls soc-hero-actions">
+            <button id="runL3OnceBtn" class="btn btn-primary">Run L3 Once</button>
+            <button id="startDaemonBtn" class="btn btn-accent">Start Continuous Scans</button>
+            <button id="stopDaemonBtn" class="btn btn-danger" disabled>Stop Daemon</button>
+            <button id="refreshL3Btn" class="btn btn-secondary">Refresh</button>
+          </div>
+
+          <div id="l3SchedulePanel" class="l3-schedule-panel">
+            <div class="l3-schedule-head">
+              <h4 class="l3-schedule-title">Scan Schedule</h4>
+              <span id="l3ScheduleActiveBadge" class="l3-schedule-active-badge hidden">Active</span>
+            </div>
+            <div class="l3-schedule-options" role="radiogroup" aria-label="Scan schedule mode">
+              <label class="l3-schedule-option">
+                <input type="radio" name="l3ScheduleMode" value="default" checked />
+                <span class="l3-schedule-card l3-schedule-card-default">
+                  <span class="l3-schedule-card-icon" aria-hidden="true">6h</span>
+                  <span class="l3-schedule-card-body">
+                    <strong>Default</strong>
+                    <span>Every 6 hours — recommended for continuous monitoring</span>
+                  </span>
+                </span>
+              </label>
+              <label class="l3-schedule-option">
+                <input type="radio" name="l3ScheduleMode" value="custom" />
+                <span class="l3-schedule-card l3-schedule-card-custom">
+                  <span class="l3-schedule-card-icon" aria-hidden="true">⚙</span>
+                  <span class="l3-schedule-card-body">
+                    <strong>Custom</strong>
+                    <span>Set your own scan interval</span>
+                  </span>
+                </span>
+              </label>
+            </div>
+            <div id="l3ScheduleCustomFields" class="l3-schedule-custom hidden">
+              <label class="l3-schedule-custom-label" for="l3CustomIntervalHours">Run every</label>
+              <div class="l3-schedule-custom-row">
+                <input type="number" id="l3CustomIntervalHours" class="l3-schedule-input" min="0.25" max="168" step="0.25" value="12" />
+                <span class="l3-schedule-unit">hours</span>
+                <span class="l3-schedule-or">or</span>
+                <input type="number" id="l3CustomIntervalMinutes" class="l3-schedule-input" min="15" max="10080" step="15" placeholder="e.g. 90" />
+                <span class="l3-schedule-unit">minutes</span>
+              </div>
+              <p class="l3-schedule-hint">Use hours <em>or</em> minutes (15 min – 7 days). Stop and restart the daemon to apply a new schedule.</p>
+            </div>
+            <p id="l3ScheduleActiveLabel" class="l3-schedule-active-label hidden"></p>
+          </div>
         </div>
       </section>
 
-      <!-- L3 KPI Row -->
-      <div class="kpi-grid l3-kpi-grid">
-        <div class="kpi-card kpi-posture">
-          <span class="kpi-label">Posture Score</span>
-          <span id="l3PostureScore" class="kpi-value">—</span>
+      <!-- Top Metrics — animated KPI cards -->
+      <section class="soc-section mb-8">
+        <div class="soc-section-head">
+          <h3 class="soc-section-title">Top Metrics</h3>
+          <span class="soc-live-badge" id="l3LiveBadge">Live</span>
         </div>
-        <div class="kpi-card kpi-trend">
-          <span class="kpi-label">Trend</span>
-          <span id="l3TrendDirection" class="kpi-value">—</span>
-          <span id="l3TrendHint" class="kpi-hint hidden"></span>
+        <div class="soc-kpi-grid">
+          <div class="soc-kpi-card soc-kpi-glow-purple kpi-posture">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">◆</span><svg class="soc-kpi-spark" data-spark="posture" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">Posture Score</span>
+            <span id="l3PostureScore" class="kpi-value soc-kpi-value" data-animate="number">—</span>
+            <div class="soc-kpi-progress"><div class="soc-kpi-progress-fill" id="l3PostureProgress"></div></div>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-green kpi-trend">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">↗</span><svg class="soc-kpi-spark" data-spark="trend" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">Trend</span>
+            <span id="l3TrendDirection" class="kpi-value soc-kpi-value">—</span>
+            <span id="l3TrendHint" class="kpi-hint hidden"></span>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-red kpi-critical" title="Open Critical findings">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">!</span><svg class="soc-kpi-spark" data-spark="critical" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">Open Critical</span>
+            <span id="l3OpenCritical" class="kpi-value soc-kpi-value" data-animate="number">—</span>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-red kpi-sla" title="SLA breaches">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">⏱</span><svg class="soc-kpi-spark" data-spark="sla" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">SLA Breaches</span>
+            <span id="l3SlaBreaches" class="kpi-value soc-kpi-value" data-animate="number">—</span>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-cyan kpi-daemon">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">⬡</span><svg class="soc-kpi-spark" data-spark="daemon" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">Daemon</span>
+            <span id="l3DaemonStatus" class="kpi-value soc-kpi-value">Stopped</span>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-cyan kpi-metric-f1">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">ƒ1</span><svg class="soc-kpi-spark" data-spark="f1" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">F1 Score</span>
+            <span id="l3MetricF1" class="kpi-value soc-kpi-value">—</span>
+            <div class="soc-kpi-progress"><div class="soc-kpi-progress-fill" id="l3F1Progress"></div></div>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-red kpi-sla">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">✓</span><svg class="soc-kpi-spark" data-spark="compliance" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">SLA Compliance</span>
+            <span id="l3MetricSlaCompliance" class="kpi-value soc-kpi-value">—</span>
+            <div class="soc-kpi-progress"><div class="soc-kpi-progress-fill" id="l3SlaComplianceProgress"></div></div>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-green kpi-metric-reliability">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">◎</span><svg class="soc-kpi-spark" data-spark="reliability" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">Scan Reliability</span>
+            <span id="l3MetricReliability" class="kpi-value soc-kpi-value">—</span>
+            <div class="soc-kpi-progress"><div class="soc-kpi-progress-fill" id="l3ReliabilityProgress"></div></div>
+          </div>
+          <div class="soc-kpi-card soc-kpi-glow-cyan kpi-metric-resolution">
+            <div class="soc-kpi-top"><span class="soc-kpi-icon">↺</span><svg class="soc-kpi-spark" data-spark="resolution" viewBox="0 0 64 24"></svg></div>
+            <span class="kpi-label">Resolution Rate</span>
+            <span id="l3MetricResolution" class="kpi-value soc-kpi-value">—</span>
+            <div class="soc-kpi-progress"><div class="soc-kpi-progress-fill" id="l3ResolutionProgress"></div></div>
+          </div>
         </div>
-        <div class="kpi-card kpi-critical" title="Open Critical findings in SQLite (status: opened, updated, or re-opened)">
-          <span class="kpi-label">Open Critical</span>
-          <span id="l3OpenCritical" class="kpi-value">—</span>
-        </div>
-        <div class="kpi-card kpi-sla" title="Findings past SLA deadline (Critical 24h, High 72h)">
-          <span class="kpi-label">SLA Breaches</span>
-          <span id="l3SlaBreaches" class="kpi-value">—</span>
-        </div>
-        <div class="kpi-card kpi-daemon">
-          <span class="kpi-label">Daemon</span>
-          <span id="l3DaemonStatus" class="kpi-value">Stopped</span>
-        </div>
-      </div>
+      </section>
 
-      <div class="kpi-grid l3-metrics-kpi-grid">
-        <div class="kpi-card kpi-metric-f1">
-          <span class="kpi-label">F1 Score</span>
-          <span id="l3MetricF1" class="kpi-value">—</span>
+      <!-- Security Scan Pipeline Hero -->
+      <section class="soc-glass soc-scan-pipeline-hero mb-8">
+        <div class="soc-section-head">
+          <h3 class="soc-section-title">Security Scan Pipeline</h3>
+          <span id="l3ScanPipelineBadge" class="soc-status-badge soc-status-idle">Idle</span>
         </div>
-        <div class="kpi-card kpi-sla">
-          <span class="kpi-label">SLA Compliance</span>
-          <span id="l3MetricSlaCompliance" class="kpi-value">—</span>
-        </div>
-        <div class="kpi-card kpi-metric-reliability">
-          <span class="kpi-label">Scan Reliability</span>
-          <span id="l3MetricReliability" class="kpi-value">—</span>
-        </div>
-        <div class="kpi-card kpi-metric-resolution">
-          <span class="kpi-label">Resolution Rate</span>
-          <span id="l3MetricResolution" class="kpi-value">—</span>
-        </div>
-      </div>
+        <div id="l3ScanPipelineHero" class="soc-scan-flow" aria-label="Multi-domain scan workflow"></div>
+      </section>
 
-      <!-- L3 Two-column: pipeline + run info -->
-      <div class="l3-two-col">
-        <!-- Left: 7-stage pipeline -->
-        <section class="l3-pipeline-section">
-          <h3>Autonomous Pipeline</h3>
-          <p class="l3-pipeline-desc">Each scan flows through 7 stages. Live stats populate after the first run.</p>
+      <div class="l3-two-col soc-main-grid mb-8">
+        <section class="soc-glass l3-pipeline-section">
+          <h3 class="soc-section-title mb-1">Autonomous Pipeline</h3>
+          <p class="l3-pipeline-desc mb-3 text-xs text-muted">7-stage continuous operations loop — stats populate after the first run.</p>
           <p id="l3PipelineStatus" class="l3-pipeline-status hidden" aria-live="polite"></p>
-          <div class="l3-pipeline">
+          <div class="l3-pipeline flex flex-col gap-0">
             <div class="l3-pipeline-step" id="l3StepScans">
               <div class="l3-step-num">1</div>
               <div class="l3-step-body">
@@ -425,40 +533,64 @@
           </div>
         </section>
 
-        <!-- Right col: latest run + posture history + log -->
-        <div class="l3-right-col">
-          <div class="meta-card">
-            <h3>Latest Scan Run</h3>
-            <dl>
+        <div class="l3-right-col flex flex-col gap-5">
+          <div class="soc-glass soc-ops-panel">
+            <div class="soc-ops-head">
+              <h3 class="soc-section-title">Latest Scan Run</h3>
+              <span id="l3ScanStatusBadge" class="soc-status-badge soc-status-idle">Idle</span>
+            </div>
+            <div class="soc-ops-health">
+              <span id="l3AgentHealthDot" class="soc-health-dot soc-health-unknown"></span>
+              <span id="l3AgentHealthLabel" class="soc-health-label">Agent standby</span>
+            </div>
+            <dl class="soc-ops-dl">
               <dt>Health</dt><dd id="l3MetaHealth">—</dd>
               <dt>Posture</dt><dd id="l3MetaPosture">—</dd>
               <dt>New / Updated</dt><dd id="l3MetaLifecycle">—</dd>
+              <dt>Duration</dt><dd id="l3MetaDuration">—</dd>
               <dt>Started</dt><dd id="l3MetaStarted">—</dd>
               <dt>Next Run</dt><dd id="l3MetaNextRun">—</dd>
+              <dt>Schedule</dt><dd id="l3MetaSchedule">Every 6 hours (default)</dd>
+              <dt>Success Rate</dt><dd id="l3MetaSuccessRate">—</dd>
               <dt>Slack</dt><dd id="l3MetaSlack">—</dd>
             </dl>
           </div>
 
-          <div class="meta-card" style="margin-top:1rem">
-            <div class="meta-card-header">
-              <h3>Posture History</h3>
-              <button id="resetL3Btn" type="button" class="btn btn-danger btn-sm" title="Clear all L3 data for a fresh first-run scan">
-                Reset L3 Data
-              </button>
+          <div class="soc-glass soc-chart-panel">
+            <div class="soc-section-head">
+              <h3 class="soc-section-title">Posture History</h3>
+              <button id="resetL3Btn" type="button" class="btn btn-danger btn-sm" title="Clear all L3 data">Reset L3 Data</button>
             </div>
-            <div id="l3TrendHistory" class="trend-history">No scan history yet.</div>
+            <div id="l3PostureChartHost" class="soc-posture-chart"></div>
+            <div id="l3TrendHistory" class="soc-trend-list hidden" aria-hidden="true"></div>
           </div>
 
-          <div class="log-panel" style="margin-top:1rem">
-            <h3>L3 Activity Log</h3>
-            <pre id="l3LogOutput" class="task-log"></pre>
+          <div class="soc-glass soc-activity-panel">
+            <h3 class="soc-section-title mb-3">Activity Stream</h3>
+            <div id="l3ActivityFeed" class="soc-activity-feed"></div>
+            <pre id="l3LogOutput" class="task-log soc-raw-log hidden" aria-hidden="true"></pre>
           </div>
         </div>
       </div>
 
-      <!-- L3 Data: Findings / Health / Audit in one tabbed panel -->
-      <section class="l3-data-panel">
-        <div class="l3-data-tabs" role="tablist" aria-label="Level 3 data views">
+      <!-- Security Posture Center -->
+      <section class="soc-glass soc-posture-center mb-8">
+        <h3 class="soc-section-title mb-4">Security Posture Center</h3>
+        <div id="l3PostureCenterGrid" class="soc-widget-grid"></div>
+      </section>
+
+      <!-- Critical Findings -->
+      <section class="soc-glass soc-critical-panel mb-8">
+        <div class="soc-section-head">
+          <h3 class="soc-section-title">Critical Findings</h3>
+          <span class="soc-pill soc-pill-critical">High Priority</span>
+        </div>
+        <div id="l3CriticalFindingsList" class="soc-finding-cards"></div>
+      </section>
+
+      <!-- L3 Data tabs -->
+      <section class="soc-glass l3-data-panel overflow-hidden">
+        <div class="l3-data-tabs flex border-b border-border bg-surface2" role="tablist" aria-label="Level 3 data views">
           <button type="button" class="l3-data-tab l3-data-tab-active" data-l3-tab="findings" role="tab" aria-selected="true">
             Lifecycle Findings
           </button>
@@ -470,17 +602,17 @@
           </button>
         </div>
 
-        <div id="l3TabFindings" class="l3-data-pane l3-data-pane-active" role="tabpanel">
-          <div class="l3-pane-toolbar">
-            <p class="section-desc">Persistent records from <code>storage/findings.db</code>. Same fingerprint across scans = one row, status updated automatically.</p>
-            <div class="filter-tabs" role="tablist" aria-label="Filter findings by status">
+        <div id="l3TabFindings" class="l3-data-pane l3-data-pane-active px-5 pt-4 pb-5" role="tabpanel">
+          <div class="l3-pane-toolbar mb-3 flex flex-wrap items-start justify-between gap-4">
+            <p class="section-desc min-w-[200px] flex-1 text-[0.82rem] text-muted">Persistent records from <code class="rounded bg-surface2 px-1.5 py-0.5 text-xs">storage/findings.db</code>. Same fingerprint across scans = one row, status updated automatically.</p>
+            <div class="filter-tabs flex gap-0 rounded-lg border border-border bg-surface2 p-0.5" role="tablist" aria-label="Filter findings by status">
               <button type="button" class="filter-tab filter-tab-active" data-filter="all" role="tab">All</button>
               <button type="button" class="filter-tab" data-filter="open" role="tab">Open</button>
               <button type="button" class="filter-tab" data-filter="reopened" role="tab">Re-opened</button>
               <button type="button" class="filter-tab" data-filter="resolved" role="tab">Resolved</button>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap overflow-x-auto">
             <table class="findings-table l3-table">
               <thead>
                 <tr>
@@ -493,9 +625,9 @@
           </div>
         </div>
 
-        <div id="l3TabHealth" class="l3-data-pane hidden" role="tabpanel">
-          <p class="section-desc">If a check fails or access is denied it appears here as <strong class="text-error">error</strong> — the agent never assumes a resource is clean. Showing latest scan run only.</p>
-          <div class="table-wrap">
+        <div id="l3TabHealth" class="l3-data-pane hidden px-5 pt-4 pb-5" role="tabpanel">
+          <p class="section-desc mb-3.5 max-w-[720px] text-[0.82rem] text-muted">If a check fails or access is denied it appears here as <strong class="text-error">error</strong> — the agent never assumes a resource is clean. Showing latest scan run only.</p>
+          <div class="table-wrap overflow-x-auto">
             <table class="findings-table l3-table">
               <thead>
                 <tr><th>Status</th><th>Check</th><th>Domain</th><th>Error</th></tr>
@@ -505,9 +637,9 @@
           </div>
         </div>
 
-        <div id="l3TabAudit" class="l3-data-pane hidden" role="tabpanel">
-          <p class="section-desc">Immutable log of every action taken by the agent — scan starts, lifecycle transitions, escalations.</p>
-          <div class="table-wrap">
+        <div id="l3TabAudit" class="l3-data-pane hidden px-5 pt-4 pb-5" role="tabpanel">
+          <p class="section-desc mb-3.5 max-w-[720px] text-[0.82rem] text-muted">Immutable log of every action taken by the agent — scan starts, lifecycle transitions, escalations.</p>
+          <div class="table-wrap overflow-x-auto">
             <table class="findings-table l3-table">
               <thead>
                 <tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th></tr>
@@ -521,28 +653,43 @@
     </div><!-- /level3View -->
 
     <!-- Report History — always visible on L1/L2/L3 (not tied to loaded report) -->
-    <section id="reportHistoryPanel" class="report-history-panel">
-      <div class="meta-card">
-        <div class="meta-card-header">
-          <h3 id="reportHistoryTitle">Report History</h3>
-          <button id="clearReportsBtn" type="button" class="btn btn-danger btn-sm" title="Delete all reports for this level">
-            Clear All Reports
+    <section id="reportHistoryPanel" class="report-history-panel mx-8 my-6 max-md:mx-4">
+      <div class="report-history-card rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+        <div class="report-history-header mb-0 flex flex-wrap items-start justify-between gap-4">
+          <button
+            id="reportHistoryToggle"
+            type="button"
+            class="report-history-toggle"
+            aria-expanded="true"
+            aria-controls="reportHistoryBody"
+          >
+            <span id="reportHistoryChevron" class="report-history-chevron" aria-hidden="true">▼</span>
+            <span class="report-history-toggle-text min-w-0 text-left">
+              <span id="reportHistoryTitle" class="report-history-title block">Report History</span>
+              <span id="reportHistoryDesc" class="report-history-desc mt-1 block max-w-[720px]">Saved scan reports from <code>reports/</code>. Export to PDF or delete entries below.</span>
+            </span>
           </button>
+          <div class="report-history-actions flex shrink-0 flex-wrap gap-2">
+            <button id="exportReportPdfBtn" type="button" class="btn btn-secondary btn-sm" title="Export loaded report as PDF">Export PDF</button>
+            <button id="clearReportsBtn" type="button" class="btn btn-danger btn-sm" title="Delete all reports for this level">Clear All Reports</button>
+          </div>
         </div>
-        <p id="reportHistoryDesc" class="section-desc">Saved scan reports from <code>reports/</code>. Delete individual files or clear all for the current level.</p>
-        <div id="reportList" class="report-list"></div>
+
+        <div id="reportHistoryBody" class="report-history-body mt-4">
+        <div id="reportList" class="report-list flex max-h-[320px] flex-col gap-2 overflow-y-auto"></div>
+        </div>
       </div>
     </section>
 
     <!-- ═══════════════ Shared L1/L2 content (below level views) ═══════════ -->
 
-    <div id="emptyState" class="empty-state hidden">
-      <h2 id="emptyStateTitle">No Level 1 reports yet</h2>
-      <p id="emptyStateDesc">Click <strong>Run Full Level 1 Demo</strong> or <strong>Run Scan Only</strong> to start.</p>
+    <div id="emptyState" class="empty-state hidden rounded-lg border border-dashed border-border bg-surface px-8 py-16 text-center">
+      <h2 id="emptyStateTitle" class="mb-3">No Level 1 reports yet</h2>
+      <p id="emptyStateDesc" class="text-sm text-muted">Click <strong>Run Full Level 1 Demo</strong> or <strong>Run Scan Only</strong> to start.</p>
     </div>
 
-    <div id="dashboardContent" class="hidden">
-      <div class="kpi-grid">
+    <div id="dashboardContent" class="hidden px-8 max-md:px-4">
+      <div id="kpiGridRow" class="kpi-grid mb-6 grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-4">
         <div class="kpi-card kpi-critical">
           <span class="kpi-label">Critical</span>
           <span id="kpiCritical" class="kpi-value">0</span>
@@ -569,35 +716,14 @@
         </div>
       </div>
 
-      <section id="agentMetricsPanel" class="agent-metrics-panel">
-        <div class="meta-card">
-          <h3>Agent Performance Metrics</h3>
-          <p id="metricsHeadline" class="metrics-headline hidden"></p>
-          <p id="metricsEmpty" class="metrics-empty section-desc">Run a new scan to generate agent performance metrics.</p>
+      <section id="agentMetricsPanel" class="agent-metrics-panel mb-6">
+        <div class="meta-card metrics-chart-card rounded-lg border border-border bg-surface p-5">
+          <h3 class="mb-3.5 text-xs tracking-wider text-muted uppercase">Agent Performance Metrics</h3>
+          <div id="metricsHeadline" class="metrics-headline hidden" aria-live="polite"></div>
+          <p id="metricsEmpty" class="metrics-empty section-desc mt-2 text-[0.82rem] text-muted">Run a new scan to generate agent performance metrics.</p>
           <div id="metricsContent" class="hidden">
-            <div class="kpi-grid metrics-kpi-grid">
-              <div class="kpi-card kpi-metric-precision">
-                <span class="kpi-label">Precision (Critical)</span>
-                <span id="metricPrecision" class="kpi-value">—</span>
-                <span id="metricPrecisionBadge" class="metric-badge">target ≥ 95%</span>
-              </div>
-              <div class="kpi-card kpi-metric-recall">
-                <span class="kpi-label">Recall (Known)</span>
-                <span id="metricRecall" class="kpi-value">—</span>
-                <span id="metricRecallBadge" class="metric-badge">target ≥ 80%</span>
-              </div>
-              <div class="kpi-card kpi-metric-f1">
-                <span class="kpi-label">F1 Score</span>
-                <span id="metricF1" class="kpi-value">—</span>
-                <span id="metricF1Badge" class="metric-badge">target ≥ 0.85</span>
-              </div>
-              <div class="kpi-card kpi-metric-confidence">
-                <span class="kpi-label">Avg Confidence</span>
-                <span id="metricConfidence" class="kpi-value">—</span>
-                <span id="metricConfidenceBadge" class="metric-badge">target ≥ 75%</span>
-              </div>
-            </div>
-            <div class="metrics-details-grid">
+            <div id="metricsChartHost" class="metrics-chart-host"></div>
+            <div class="metrics-details-grid mt-4 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3">
               <details class="metrics-details" open>
                 <summary>Detection Quality</summary>
                 <div id="metricsDetectionDetail" class="metrics-detail-table"></div>
@@ -619,31 +745,31 @@
         </div>
       </section>
 
-      <div class="meta-grid">
-        <div class="meta-card">
-          <h3>Scan Metadata</h3>
-          <dl>
-            <dt>Level</dt><dd id="metaLevel">-</dd>
-            <dt>Health</dt><dd id="metaHealth">-</dd>
-            <dt>Account</dt><dd id="metaAccount">-</dd>
-            <dt>Region</dt><dd id="metaRegion">-</dd>
-            <dt>Duration</dt><dd id="metaDuration">-</dd>
-            <dt>Checks</dt><dd id="metaChecks">-</dd>
-            <dt>Scan Time</dt><dd id="metaTime">-</dd>
+      <div class="meta-grid mb-6 grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+        <div class="meta-card rounded-lg border border-border bg-surface p-5">
+          <h3 class="mb-3.5 text-xs tracking-wider text-muted uppercase">Scan Metadata</h3>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+            <dt class="text-muted">Level</dt><dd id="metaLevel" class="font-medium">-</dd>
+            <dt class="text-muted">Health</dt><dd id="metaHealth" class="font-medium">-</dd>
+            <dt class="text-muted">Account</dt><dd id="metaAccount" class="font-medium">-</dd>
+            <dt class="text-muted">Region</dt><dd id="metaRegion" class="font-medium">-</dd>
+            <dt class="text-muted">Duration</dt><dd id="metaDuration" class="font-medium">-</dd>
+            <dt class="text-muted">Checks</dt><dd id="metaChecks" class="font-medium">-</dd>
+            <dt class="text-muted">Scan Time</dt><dd id="metaTime" class="font-medium">-</dd>
           </dl>
         </div>
-        <div class="meta-card">
-          <h3>Check Errors</h3>
-          <div id="scanErrorsPanel" class="errors-panel">
-            <p id="scanErrorsEmpty" class="section-desc">No check errors in this report.</p>
-            <ul id="scanErrorsList" class="hidden"></ul>
+        <div class="meta-card rounded-lg border border-border bg-surface p-5">
+          <h3 class="mb-3.5 text-xs tracking-wider text-muted uppercase">Check Errors</h3>
+          <div id="scanErrorsPanel" class="errors-panel mt-4 border-t border-border pt-4">
+            <p id="scanErrorsEmpty" class="section-desc text-[0.82rem] text-muted">No check errors in this report.</p>
+            <ul id="scanErrorsList" class="hidden list-none text-xs text-muted"></ul>
           </div>
         </div>
       </div>
 
-      <section class="findings-section">
-        <h2 id="findingsSectionTitle">Findings</h2>
-        <div id="findingsTableWrap">
+      <section class="findings-section mb-8">
+        <h2 id="findingsSectionTitle" class="mb-3 text-lg">Findings</h2>
+        <div id="findingsTableWrap" class="overflow-x-auto">
           <table class="findings-table">
             <thead id="findingsTableHead">
               <tr>
@@ -656,9 +782,9 @@
         </div>
       </section>
 
-      <section id="logPanel" class="log-panel hidden">
-        <h3>Activity Log</h3>
-        <pre id="logOutputReport"></pre>
+      <section id="logPanel" class="log-panel hidden rounded-lg border border-border bg-surface p-4">
+        <h3 class="mb-2.5 text-[0.82rem] tracking-wider text-muted uppercase">Activity Log</h3>
+        <pre id="logOutputReport" class="max-h-[220px] overflow-y-auto text-[0.72rem] whitespace-pre-wrap text-muted"></pre>
       </section>
     </div>
 
@@ -666,6 +792,9 @@
 
   <div id="toast" class="toast hidden"></div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="/static/l2-pipeline-viz.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

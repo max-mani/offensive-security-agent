@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from metrics.ground_truth import KNOWN_MISCONFIGS, get_total_known
+from metrics.ground_truth import compute_verified_recall
 from metrics.models import (
     AgentMetrics,
     CoverageMetrics,
@@ -207,12 +207,7 @@ class MetricsCalculator:
         for f in findings:
             severity_counts[f.severity] = severity_counts.get(f.severity, 0) + 1
 
-        found_check_ids = {f.check_id for f in findings}
-        known_total = get_total_known()
-        known_found = sum(
-            1 for kg in KNOWN_MISCONFIGS if kg["check_id"] in found_check_ids
-        )
-        verified_recall = known_found / known_total if known_total > 0 else None
+        known_found, known_total, verified_recall = compute_verified_recall(findings)
 
         critical_findings = [f for f in findings if f.severity == "critical"]
         fp_critical = sum(1 for f in critical_findings if f.confidence_score < 70)
@@ -337,3 +332,38 @@ class MetricsCalculator:
             f"Reliability:{l3.scan_reliability_rate * 100:.0f}% | "
             f"F1:{d.f1_score:.2f}"
         )
+
+    def refresh_report_metrics(self, report_data: dict) -> dict:
+        """Recompute detection metrics and headline from stored findings."""
+        findings_raw = report_data.get("findings") or []
+        if not findings_raw:
+            return report_data
+
+        try:
+            findings = [ValidatedFinding.model_validate(f) for f in findings_raw]
+        except Exception as exc:
+            logger.warning("[metrics] Could not refresh report metrics: %s", exc)
+            return report_data
+
+        detection = self._compute_detection(findings)
+        metrics = dict(report_data.get("metrics") or {})
+        metrics["detection"] = detection.model_dump()
+
+        level = int(report_data.get("scan_level", metrics.get("level", 1)))
+        speed = SpeedMetrics.model_validate(metrics["speed"]) if metrics.get("speed") else None
+        coverage = (
+            CoverageMetrics.model_validate(metrics["coverage"]) if metrics.get("coverage") else None
+        )
+        level2 = Level2Metrics.model_validate(metrics["level2"]) if metrics.get("level2") else None
+        level3 = Level3Metrics.model_validate(metrics["level3"]) if metrics.get("level3") else None
+
+        if level >= 3 and level3 is not None and speed is not None:
+            metrics["headline"] = self._headline_l3(detection, speed, level3)
+        elif level >= 2 and level2 is not None and speed is not None and coverage is not None:
+            metrics["headline"] = self._headline_l2(detection, speed, coverage, level2)
+        elif speed is not None and coverage is not None:
+            metrics["headline"] = self._headline_l1(detection, speed, coverage)
+
+        metrics["level"] = level
+        report_data["metrics"] = metrics
+        return report_data
