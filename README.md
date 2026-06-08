@@ -39,12 +39,28 @@ Each check calls boto3, gets a raw finding, and passes it to the LLM for impact 
 
 For the demo I create five intentional misconfigs using a second admin-only AWS user: two public S3 buckets, one IAM user without MFA, and two open security groups. The read-only scanner user finds them all. Three more real issues come from the account itself — root MFA disabled, no CloudTrail, weak password policy.
 
+Click **Run Full Demo** on the Level 1 tab and the dashboard walks through setup, verification, scan, and report load in one flow. You get a live checklist and terminal log while it runs, then a four-stage scan pipeline (Config → AWS → LLM → Reports).
+
+![Level 1 overview — findings breakdown and asset cards](docs/screenshots/l1-overview.png)
+
+![Full demo pipeline running with live terminal output](docs/screenshots/l1-full-demo-pipeline.png)
+
+![Level 1 scan pipeline — four stages](docs/screenshots/l1-scan-pipeline-stages.png)
+
 **Demo results:**
 - 8 findings (5 Critical, 2 High, 1 Medium)
 - Precision on Critical: 100%
 - Recall: 100%
 - F1: 1.00
 - Scan duration: ~87 seconds
+
+![Level 1 findings table — 5 Critical, 2 High, 1 Medium](docs/screenshots/l1-findings-table.png)
+
+Every Critical finding is backed by raw API evidence. Below is the root MFA finding — `AccountMFAEnabled: 0` comes straight from boto3. The LLM wrote the business impact and remediation steps; severity came from the check.
+
+![Expanded root MFA finding — evidence, impact, and remediation](docs/screenshots/l1-finding-detail-root-mfa.png)
+
+![Agent Performance — precision, recall, F1, and confidence](docs/screenshots/l1-agent-performance.png)
 
 ---
 
@@ -61,6 +77,14 @@ Same 13 AWS checks plus three new domains, all running at the same time.
 After all four domains finish, every finding goes through deduplication (same check + resource + severity = one row, not four) and then gets sorted by a weighted impact score. The formula is severity times a domain weight times confidence. Secrets and AWS misconfigs score higher than CVEs because a hardcoded key is exploitable immediately — a vulnerable package in requirements.txt might not even be running.
 
 The nine-stage pipeline has a live graph in the dashboard so you can watch data flow between domains as the scan runs.
+
+![Level 2 pipeline — nine stages with animated connectors](docs/screenshots/l2-pipeline-animating.png)
+
+![Level 2 live pipeline graph — AWS, API, Deps, Secrets](docs/screenshots/l2-live-pipeline-graph.png)
+
+![Level 2 findings — impact-ranked, multiple domains, CVE detail](docs/screenshots/l2-findings-table.png)
+
+![Level 2 Agent Performance — domain success and dedup stats](docs/screenshots/l2-agent-performance.png)
 
 ---
 
@@ -82,7 +106,19 @@ This is where it becomes a proper service rather than a one-off tool.
 
 **Scan health:** Every check writes a row to the `scan_health` table — success or error with the exact error message. The dashboard shows this so you can never get a falsely clean report because a check failed quietly.
 
-**SOC dashboard:** The Level 3 tab is a live security operations view with animated KPI cards (posture score, trend, open criticals, SLA breaches, F1, SLA compliance, reliability, resolution rate), a pipeline flow diagram, posture chart, activity feed, and critical findings list.
+The Level 3 tab is a live SOC view — schedule controls, KPI cards, pipeline flow, posture chart, activity feed, and a lifecycle findings table.
+
+![Level 3 SOC hero — schedule panel and daemon controls](docs/screenshots/l3-soc-hero-schedule.png)
+
+![Level 3 KPI grid — posture, trend, SLA, F1, reliability](docs/screenshots/l3-kpi-grid.png)
+
+![Security scan pipeline hero — animated multi-domain flow](docs/screenshots/l3-scan-pipeline-hero.png)
+
+![Autonomous pipeline — seven stages with live metrics](docs/screenshots/l3-autonomous-pipeline-stages.png)
+
+![Posture score over time — trend after multiple scans](docs/screenshots/l3-posture-chart.png)
+
+![Lifecycle findings table — status, first_seen, last_seen](docs/screenshots/l3-lifecycle-findings-table.png)
 
 ---
 
@@ -165,6 +201,8 @@ Full end-to-end test that creates misconfigs, scans, then deletes everything:
 ```powershell
 python scripts\run_full_test_and_cleanup.py
 ```
+
+![Level 3 acceptance test — all criteria passed](docs/screenshots/l3-acceptance-test-pass.png)
 
 ---
 
